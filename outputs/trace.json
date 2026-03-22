@@ -2,11 +2,14 @@
   {
     "iteration": 0,
     "status": "baseline",
-    "auc": 0.5974999999999999,
-    "f1": 0.6,
+    "auc": 0.9649122807017543,
+    "f1": 0.8747642991829039,
     "features_used": [
-      "a",
-      "b"
+      "age",
+      "income",
+      "balance",
+      "num_products",
+      "years_customer"
     ]
   }
 ]

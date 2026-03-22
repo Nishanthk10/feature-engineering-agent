@@ -36,7 +36,7 @@ def main():
     trace_path = OUTPUTS_DIR / "trace.json"
     tmp_path = OUTPUTS_DIR / "trace.json.tmp"
     tmp_path.write_text(json.dumps([trace_entry], indent=2))
-    tmp_path.rename(trace_path)
+    tmp_path.replace(trace_path)
 
     print(f"Baseline AUC: {result.auc:.4f}")
     sys.exit(0)
