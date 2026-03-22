@@ -49,6 +49,13 @@ class IterationRecord(BaseModel):
     status: str     # "completed" | "failed"
 
 
+class AgentTrace(BaseModel):
+    baseline_auc: float
+    iterations: list["IterationRecord"]
+    final_feature_set: list[str]
+    final_auc: float
+
+
 class ExecuteResult(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 

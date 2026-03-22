@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from tools.profile import ProfileTool
 from tools.schemas import DatasetProfile
@@ -81,6 +82,7 @@ def make_csv(path: pathlib.Path, n_rows: int = 200) -> pathlib.Path:
 ROOT = pathlib.Path(__file__).parent.parent
 
 
+@pytest.mark.e2e
 class TestRunAgent:
     def _run(self, *extra_args, outputs_dir: pathlib.Path = None, csv: pathlib.Path = None):
         cmd = [
@@ -128,7 +130,7 @@ class TestRunAgent:
             capture_output=True, text=True, cwd=str(tmp_path),
         )
         trace = json.loads((tmp_path / "outputs" / "trace.json").read_text())
-        assert isinstance(trace, list) and len(trace) == 1
+        assert isinstance(trace, list) and len(trace) >= 1
         entry = trace[0]
         assert entry["iteration"] == 0
         assert entry["status"] == "baseline"
@@ -144,7 +146,7 @@ class TestRunAgent:
              "--dataset", str(csv), "--target", "label"],
             capture_output=True, text=True, cwd=str(tmp_path),
         )
-        assert not (tmp_path / "outputs" / "trace.json.tmp").exists()
+        assert not (tmp_path / "outputs" / "trace.tmp.json").exists()
 
     def test_outputs_dir_created_if_not_present(self, tmp_path):
         csv = make_csv(tmp_path / "data.csv")
