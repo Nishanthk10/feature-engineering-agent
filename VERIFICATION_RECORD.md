@@ -39,12 +39,12 @@ mlflow and python-dotenv added to requirements.txt — required by Claude.md
 Fixed Stack, flagged by CC, accepted.
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:** [YOU FILL: Verified or Failed]
+**Status:** Verified
 
 ---
 
@@ -55,16 +55,25 @@ Source: EXECUTION_PLAN.md Session 1
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Valid CSV, valid target | Returns two independent DataFrames | |
-| TC-2 | Target column missing | ValueError raised | |
-| TC-3 | File not found | ValueError raised | |
-| TC-4 | Mutate working_df, check original_df | Original unchanged | |
+| TC-1 | Valid CSV, valid target | Returns two independent DataFrames | PASS |
+| TC-2 | Target column missing | ValueError raised | PASS |
+| TC-3 | File not found | ValueError raised | PASS |
+| TC-4 | Mutate working_df, check original_df | Original unchanged | PASS |
 
 ### Prediction Statement
-
+TC-1: load() with valid CSV and valid target column will return 
+      two DataFrames that are independent copies
+TC-2: load() with a missing target column will raise ValueError
+TC-3: load() with a non-existent file path will raise ValueError
+TC-4: mutating the working_df will not change the original_df — 
+      the two objects are fully independent in memory
 
 ### CC Challenge Output
-
+- File size > 500MB: accepted — stated requirement, added test
+- 100 rows boundary: accepted — boundary test on hard limit
+- Source file unmodified: rejected — no write operations in file, confirmed by code review
+- Non-CSV/malformed file: rejected — out of scope for this task
+- Return values not same object: accepted — directly tests INV-01 independence
 
 ### Code Review
 Invariant touched: INV-01 (dataset immutability)
@@ -75,12 +84,12 @@ Invariant touched: INV-01 (dataset immutability)
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 

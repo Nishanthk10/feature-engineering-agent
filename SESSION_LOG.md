@@ -11,7 +11,7 @@
 
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
-| 1.1 | Repository scaffold | Completed | |
+| 1.1 | Repository scaffold | Completed | 7010e88 |
 | 1.2 | Dataset loader and validator | | |
 | 1.3 | Baseline evaluator | | |
 | 1.4 | Dataset profiler and CLI wiring | | |
