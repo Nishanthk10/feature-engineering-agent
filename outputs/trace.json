@@ -1,0 +1,15 @@
+[
+  {
+    "iteration": 0,
+    "status": "baseline",
+    "auc": 0.9649122807017543,
+    "f1": 0.8747642991829039,
+    "features_used": [
+      "age",
+      "income",
+      "balance",
+      "num_products",
+      "years_customer"
+    ]
+  }
+]
