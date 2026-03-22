@@ -145,16 +145,28 @@ Source: EXECUTION_PLAN.md Session 1
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Run with valid dataset + target | Prints "Baseline AUC: X", exits 0 | |
-| TC-2 | trace.json written | Contains iteration 0, status: baseline, auc value | |
-| TC-3 | --max-iter 0 flag | Stops after baseline, no iteration 1 | |
-| TC-4 | Profile missing_rate | Correct fractions for known-missing synthetic data | |
+| TC-1 | Run with valid dataset + target | Prints "Baseline AUC: X", exits 0 | PASS |
+| TC-2 | trace.json written | Contains iteration 0, status: baseline, auc value | PASS |
+| TC-3 | --max-iter 0 flag | Stops after baseline, no iteration 1 | PASS |
+| TC-4 | Profile missing_rate | Correct fractions for known-missing synthetic data | PASS |
 
 ### Prediction Statement
-
+TC-1: run_agent.py with valid dataset and target will print "Baseline AUC: X" where X is a float, and exit 0
+TC-2: outputs/trace.json will exist after the run and contain a list with one entry: iteration 0, status baseline, with an auc value
+TC-3: passing --max-iter 0 will stop after baseline with no iteration 1 entry in trace.json
+TC-4: profile missing_rate will return correct fractions for columns with known missing values in a synthetic dataset
 
 ### CC Challenge Output
-
+- feature_cols ordering: rejected — not a stated requirement
+- target_col absent from missing_rate: accepted — added assertion
+- dtypes value strings: rejected — pandas-internal, too brittle
+- zero missing values boundary: accepted — added 0.0 case
+- --max-iter parsed: accepted — added test
+- trace.json structure: accepted — added field validation
+- .tmp not left behind: accepted — tests INV-05 atomic write
+- outputs/ created if missing: accepted — real edge case
+- exit code 0: accepted — added process check
+- DatasetLoader ValueError propagation: rejected — covered in Task 1.2
 
 ### Code Review
 Invariants touched: INV-05 (trace completeness), INV-09 (baseline first)
@@ -165,9 +177,9 @@ Invariants touched: INV-05 (trace completeness), INV-09 (baseline first)
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
