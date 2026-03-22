@@ -15,3 +15,12 @@ class DatasetProfile(BaseModel):
     feature_cols: list[str]
     missing_rate: dict[str, float]
     dtypes: dict[str, str]
+
+
+class ExecuteResult(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+
+    success: bool
+    new_columns: list[str]
+    error_message: str | None
+    output_df: object | None  # pd.DataFrame | None
