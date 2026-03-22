@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+anthropic
+lightgbm
+shap
+pandas
+numpy
+scipy
+scikit-learn
+pydantic
+fastmcp
+pytest
+python-multipart
+mlflow
+python-dotenv

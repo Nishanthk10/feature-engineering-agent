@@ -1,0 +1,2 @@
+class ProfileTool:
+    pass
