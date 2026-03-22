@@ -12,7 +12,7 @@
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
 | 2.1 | Code execution sandbox | Completed | f9d19f6 |
-| 2.2 | SHAP tool | | |
+| 2.2 | SHAP tool | Completed | 2ecc7fb |
 | 2.3 | LLM reasoning layer | | |
 | 2.4 | Agent loop wiring | | |
 
@@ -24,6 +24,9 @@
 |------|---------------|-----------|
 | 2.1 | Accepted 5 CC Challenge cases: no new cols, multiple cols, row count, preserve cols, from X import Y form | Security and data integrity coverage |
 | 2.1 | Rejected 3 CC Challenge cases: runtime exception, sandbox_runner isolation, timeout in fast suite | Same code path, impractical, documented gap |
+| 2.2 | Accepted 4 CC Challenge cases: fewer than 3 features, tied values, all zero, length check | Edge case and integrity coverage |
+| 2.2 | Rejected 2 CC Challenge cases: decimal formatting, feature_name mapping | Too brittle; already covered |
+
 
 ---
 
@@ -33,6 +36,7 @@
 |------|--------------------|--------------|
 | 2.1 | TC-4 timeout test used wrong code — time.sleep blocked by whitelist before timeout | Replaced with busy loop test that correctly exercises TimeoutExpired path |
 | 2.1 | PytestUnknownMarkWarning for slow mark — pytest.ini out of scope | Warning is cosmetic, mark works correctly for filtering. Deferred to Session 5. |
+| 2.3 | IterationRecord schema expansion broke test_llm_reasoner.py fixture | Updated fixture to use full 11-field schema — Option 1, correct approach per INV-07 |
 
 ---
 
@@ -40,7 +44,7 @@
 
 | Change | Reason | New Claude.md version | Tasks re-verified |
 |--------|--------|-----------------------|-------------------|
-| None   |        |                       |                   |
+| IterationRecord expanded from minimal to full schema in tools/schemas.py | Task 2.4 requires full schema — gap surfaced by CC at end of Task 2.3 | v1.0 unchanged — schema addition is additive, no invariant conflict | Tasks 2.3 re-verified — all 8 still pass |
 
 ---
 

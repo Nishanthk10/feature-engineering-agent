@@ -28,6 +28,27 @@ class ShapSummary(BaseModel):
     top_3_summary: str
 
 
+class ReasoningOutput(BaseModel):
+    hypothesis: str
+    feature_name: str
+    transformation_code: str
+    decision_rationale: str
+
+
+class IterationRecord(BaseModel):
+    iteration: int
+    hypothesis: str
+    feature_name: str
+    transformation_code: str
+    auc_before: float
+    auc_after: float
+    auc_delta: float
+    shap_summary: ShapSummary
+    decision: str   # "kept" | "discarded" | "error"
+    error_message: str | None
+    status: str     # "completed" | "failed"
+
+
 class ExecuteResult(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 

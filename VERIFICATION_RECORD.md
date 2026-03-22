@@ -104,32 +104,44 @@ Source: EXECUTION_PLAN.md Session 2
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Valid JSON from mocked API | ReasoningOutput with all fields | |
-| TC-2 | Malformed JSON from API | ValueError raised | |
-| TC-3 | transformation_code field | Non-empty string | |
-| TC-4 | History > 3 iterations | Only last 3 sent to API (check mock call args) | |
+| TC-1 | Valid JSON from mocked API | ReasoningOutput with all fields | PASS |
+| TC-2 | Malformed JSON from API | ValueError raised | PASS |
+| TC-3 | transformation_code field | Non-empty string | PASS |
+| TC-4 | History > 3 iterations | Only last 3 sent to API | PASS |
 
 ### Prediction Statement
-
+TC-1: valid JSON response from mocked API will parse into ReasoningOutput with all four fields populated
+TC-2: malformed JSON from mocked API will raise ValueError containing the raw response text
+TC-3: transformation_code field will be a non-empty string in a valid response
+TC-4: when iteration history has more than 3 entries, only the last 3 will appear in the mock call arguments
 
 ### CC Challenge Output
+- User prompt contains profile fields: rejected — prompt content too brittle
+- User prompt includes top_3_summary: rejected — same reason
+- Only last 3 records sent (5 record test): accepted — TC-4 not properly covered, added test
+- current_features in prompt: rejected — prompt content too brittle
+- Model is claude-sonnet-4-20250514: accepted — Fixed Stack enforcement verified
+- System parameter content: rejected — prompt internals too brittle
+- Empty iteration_history handled: accepted — real scenario on iteration 1, added test
+- Missing required key raises ValidationError: accepted — distinct from JSONDecodeError, added test
+- Extra keys in JSON: rejected — Pydantic v2 library guarantee
 
 
 ### Code Review
-Invariant touched: INV-07 (hypothesis required before code)
-- Confirm hypothesis field is required in ReasoningOutput
-- Confirm system prompt instructs LLM to return hypothesis before code
+INV-07 confirmed:
+- hypothesis field required in ReasoningOutput — Pydantic validation enforces non-empty, confirmed in schemas.py
+- System prompt instructs LLM to return hypothesis before code — confirmed in llm_reasoner.py system prompt text
 
 ### Scope Decisions
-
+IterationRecord expanded from 3 fields to 11 in tools/schemas.py — required to avoid conflict with Task 2.4. test_llm_reasoner.py fixture updated to match. Option 1 chosen over optional fields to preserve INV-07 Pydantic enforcement.
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
