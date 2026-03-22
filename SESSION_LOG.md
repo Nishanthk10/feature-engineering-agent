@@ -11,7 +11,7 @@
 
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
-| 2.1 | Code execution sandbox | | |
+| 2.1 | Code execution sandbox | Completed | f9d19f6 |
 | 2.2 | SHAP tool | | |
 | 2.3 | LLM reasoning layer | | |
 | 2.4 | Agent loop wiring | | |
@@ -22,7 +22,8 @@
 
 | Task | Decision made | Rationale |
 |------|---------------|-----------|
-|      |               |           |
+| 2.1 | Accepted 5 CC Challenge cases: no new cols, multiple cols, row count, preserve cols, from X import Y form | Security and data integrity coverage |
+| 2.1 | Rejected 3 CC Challenge cases: runtime exception, sandbox_runner isolation, timeout in fast suite | Same code path, impractical, documented gap |
 
 ---
 

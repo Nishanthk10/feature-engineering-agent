@@ -17,6 +17,17 @@ class DatasetProfile(BaseModel):
     dtypes: dict[str, str]
 
 
+class FeatureShapEntry(BaseModel):
+    feature_name: str
+    mean_abs_shap: float
+    rank: int
+
+
+class ShapSummary(BaseModel):
+    ranked_features: list[FeatureShapEntry]
+    top_3_summary: str
+
+
 class ExecuteResult(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 

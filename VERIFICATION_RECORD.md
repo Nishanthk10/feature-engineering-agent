@@ -44,12 +44,12 @@ Invariant touched: INV-03 (code execution isolation)
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
@@ -60,32 +60,40 @@ Source: EXECUTION_PLAN.md Session 2
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | EvaluationResult with 5 features | ranked_features sorted by shap descending | |
-| TC-2 | rank field | 1-indexed, matches sort order | |
-| TC-3 | top_3_summary | Contains top 3 feature names as strings | |
-| TC-4 | Single feature input | One entry, rank=1 | |
+| TC-1 | EvaluationResult with 5 features | ranked_features sorted by shap descending | PASS |
+| TC-2 | rank field | 1-indexed, matches sort order | PASS |
+| TC-3 | top_3_summary | Contains top 3 feature names as strings | PASS |
+| TC-4 | Single feature input | One entry, rank=1 | PASS |
 
 ### Prediction Statement
-
+TC-1: EvaluationResult with 5 features will return ranked_features sorted descending by mean_abs_shap — highest shap first
+TC-2: rank field will be 1-indexed — first entry rank=1, second rank=2, matching sort order exactly
+TC-3: top_3_summary string will contain the names of the top 3 features by shap value as substrings
+TC-4: EvaluationResult with single feature will return ranked_features with one entry, rank=1
 
 ### CC Challenge Output
-
+- top_3_summary with < 3 features: accepted — edge case, should not crash, added test
+- top_3_summary decimal formatting: rejected — cosmetic, too brittle
+- Tied SHAP values: accepted — should not raise error, added test
+- All SHAP values zero: accepted — ranks still assigned, added test
+- ranked_features length equals feature count: accepted — verifies nothing truncated
+- feature_name matches dict key: rejected — direct assignment, covered by TC-1
 
 ### Code Review
-Invariant touched: INV-07 (feature candidate schema — SHAP values required)
-- Confirm ranked_features sorted descending by mean_abs_shap
-- Confirm rank is 1-indexed
+INV-07 confirmed:
+- ranked_features sorted descending by mean_abs_shap — confirmed in shap_tool.py
+- rank is 1-indexed — confirmed, first entry rank=1
 
 ### Scope Decisions
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
