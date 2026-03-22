@@ -12,7 +12,7 @@
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
 | 1.1 | Repository scaffold | Completed | 7010e88 |
-| 1.2 | Dataset loader and validator | | |
+| 1.2 | Dataset loader and validator | Completed | 5a66896 |
 | 1.3 | Baseline evaluator | | |
 | 1.4 | Dataset profiler and CLI wiring | | |
 
@@ -23,6 +23,9 @@
 | Task | Decision made | Rationale |
 |------|---------------|-----------|
 | 1.1 | Added mlflow and python-dotenv to requirements.txt | Required by Claude.md Fixed Stack — flagged correctly by CC, accepted |
+| 1.2 | Accepted 3 CC Challenge cases: size limit, boundary, object identity | Valid gap coverage for INV-01 |
+| 1.2 | Rejected 2 CC Challenge cases: byte comparison, malformed file | Code review confirmed no writes; malformed file out of scope |
+
 
 ---
 

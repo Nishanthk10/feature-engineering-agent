@@ -100,16 +100,25 @@ Source: EXECUTION_PLAN.md Session 1
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Clean synthetic binary dataset | EvaluationResult returned, AUC 0.5–1.0 | |
-| TC-2 | Run twice with same inputs | AUC identical both runs | |
-| TC-3 | SHAP values dict | One key per feature, values are floats | |
-| TC-4 | Target column in DataFrame | Dropped from features, not in shap_values | |
+| TC-1 | Clean synthetic binary dataset | EvaluationResult returned, AUC 0.5–1.0 | PASS |
+| TC-2 | Run twice with same inputs | AUC identical both runs | PASS |
+| TC-3 | SHAP values dict | One key per feature, values are floats | PASS |
+| TC-4 | Target column in DataFrame | Dropped from features, not in shap_values | PASS |
 
 ### Prediction Statement
-
+TC-1: EvaluateTool on a clean synthetic binary dataset will return an EvaluationResult with AUC between 0.5 and 1.0
+TC-2: Running evaluate() twice on identical inputs will return exactly the same AUC value both times
+TC-3: shap_values dict will have one key per feature column, all values will be floats
+TC-4: The target column will not appear as a key in shap_values
 
 ### CC Challenge Output
-
+- f1 range: accepted — added range assertion
+- feature_names excludes target: accepted — explicit absence check added
+- SHAP sample path: rejected — code inspection confirms branch exists, 
+  50k dataset too slow for test suite
+- Non-binary target: rejected — out of scope, binary only per spec
+- Single-feature DataFrame: accepted — edge case added
+- shap_values non-negative: accepted — construction guarantee asserted
 
 ### Code Review
 Invariants touched: INV-06 (evaluation determinism), INV-09 (baseline first)
@@ -120,12 +129,12 @@ Invariants touched: INV-06 (evaluation determinism), INV-09 (baseline first)
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
