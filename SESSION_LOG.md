@@ -11,7 +11,7 @@
 
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
-| 4.1 | MCP server | Completed | 00f74ac |
+| 4.1 | MCP server | Completed | b1857d3 |
 | 4.2 | FastAPI backend | | |
 | 4.3 | Streaming iteration updates | | |
 

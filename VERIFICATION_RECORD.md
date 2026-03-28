@@ -62,30 +62,44 @@ Source: EXECUTION_PLAN.md Session 4
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | GET / | Returns 200 | |
-| TC-2 | GET /trace, no file | Returns {"trace": []} | |
-| TC-3 | GET /status on startup | Returns {"status": "idle"} | |
-| TC-4 | POST /run with valid CSV | Returns {"status": "started"} | |
+| TC-1 | GET / | Returns 200 | PASS |
+| TC-2 | GET /trace, no file | Returns {"trace": []} | PASS |
+| TC-3 | GET /status on startup | Returns {"status": "idle"} | PASS |
+| TC-4 | POST /run with valid CSV | Returns {"status": "started"} | PASS |
 
 ### Prediction Statement
+TC-1: GET / will return HTTP 200 with the index.html content
+TC-2: GET /trace when no trace.json exists will return {"trace": []} without error
+TC-3: GET /status on a fresh startup will return {"status": "idle"} before any run has been triggered
+TC-4: POST /run with a valid CSV file and target column name will return {"status": "started"} immediately without waiting for the agent to complete
 
 
 ### CC Challenge Output
+- Exception in _run_agent stuck at "running": accepted — silent failure mode, added test
+- Missing required fields returns 422: accepted — API contract, added tests
+- max_iter defaults to 5: accepted — stated requirement, added test
+- State transitions to "running": rejected — exception test covers finally block implicitly
+- GET /trace key name: rejected — covered by equality check
+- _run_agent normal completion: rejected — covered by exception test
+- GET / input elements: rejected — too brittle, HTML evolves in Task 4.3
 
 
 ### Code Review
 No invariants directly touched — UI layer only.
+- Background thread confirmed as daemon — agent run does not block request
+- GET /trace returns {"trace": []} on missing file — confirmed, no 500
+- GET / serves static/index.html via FileResponse — confirmed
 
 ### Scope Decisions
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
