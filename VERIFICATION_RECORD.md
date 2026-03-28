@@ -13,33 +13,44 @@ Source: EXECUTION_PLAN.md Session 3
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Feature identical to target values | is_leaking=True, reason set | |
-| TC-2 | Feature name contains target col name | is_leaking=True | |
-| TC-3 | Uncorrelated random feature | is_leaking=False | |
-| TC-4 | Leaking feature in loop | IterationRecord decision="discarded" | |
+| TC-1 | Feature identical to target values | is_leaking=True, reason set | PASS |
+| TC-2 | Feature name contains target col name | is_leaking=True | PASS |
+| TC-3 | Uncorrelated random feature | is_leaking=False | PASS |
+| TC-4 | Leaking feature in loop | IterationRecord decision="discarded" | PASS |
 
 ### Prediction Statement
-
+TC-1: a feature series identical to the target will return is_leaking=True with reason set describing the correlation check
+TC-2: a feature whose name contains the target column name as a substring will return is_leaking=True
+TC-3: a genuinely random feature uncorrelated with the target will return is_leaking=False with reason=None
+TC-4: when the loop encounters a leaking feature it will write an IterationRecord with decision="discarded" and continue to the next iteration without calling EvaluateTool
 
 ### CC Challenge Output
+- MI path never triggered: accepted — third check had zero coverage, added TestLeakageDetectorMIBranch
+- feature_name == target_col exactly: rejected — substring check covers exact match
+- Loop decision="discarded" assertion: accepted — added TestLeakageDiscarded in test_loop.py
+- reason content correctness: rejected — non-None check sufficient, exact wording too brittle
+- NaN/constant feature series: accepted — added constant feature edge case tests
+- error_message equals leak.reason: rejected — implementation internals
+
 
 
 ### Code Review
-Invariant touched: INV-02 (leakage prevention)
-- Confirm all 3 checks present: correlation > 0.95, mutual info > 0.9, name substring
-- Confirm loop.py calls detector before evaluate
-- Confirm leaking features never enter EvaluateTool
+INV-02 confirmed:
+- LeakageDetector called after ExecuteTool success — confirmed in loop.py
+- EvaluateTool only called when is_leaking=False — confirmed in loop.py
+- Leaking feature writes decision="discarded" and continues — confirmed in loop.py
+- All 3 checks present: name substring, Pearson correlation > 0.95, MI > 0.9o
 
 ### Scope Decisions
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 

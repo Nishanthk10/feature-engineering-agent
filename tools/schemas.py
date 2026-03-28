@@ -56,6 +56,11 @@ class AgentTrace(BaseModel):
     final_auc: float
 
 
+class LeakageResult(BaseModel):
+    is_leaking: bool
+    reason: str | None
+
+
 class ExecuteResult(BaseModel):
     model_config = {"arbitrary_types_allowed": True}
 
