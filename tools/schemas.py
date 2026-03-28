@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class EvaluationResult(BaseModel):
@@ -54,6 +54,35 @@ class AgentTrace(BaseModel):
     iterations: list["IterationRecord"]
     final_feature_set: list[str]
     final_auc: float
+
+
+class FeatureCandidate(BaseModel):
+    name: str
+    transformation_code: str
+    hypothesis: str
+    mean_abs_shap: float
+    auc_delta: float
+    decision: str  # "kept" | "discarded" | "error"
+
+    @field_validator("name", "transformation_code", "hypothesis")
+    @classmethod
+    def must_not_be_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("field must not be empty")
+        return v
+
+
+class FormattedOutput(BaseModel):
+    baseline_auc: float
+    final_auc: float
+    auc_lift: float
+    kept_features: list["FeatureCandidate"]
+    report_text: str
+
+
+class LeakageResult(BaseModel):
+    is_leaking: bool
+    reason: str | None
 
 
 class ExecuteResult(BaseModel):

@@ -3,6 +3,7 @@ import json
 import pathlib
 
 from agent.data_loader import DatasetLoader
+from agent.leakage_detector import LeakageDetector
 from agent.llm_reasoner import LLMReasoner
 from tools.evaluate import EvaluateTool
 from tools.execute import ExecuteTool
@@ -105,11 +106,14 @@ class AgentLoop:
                     break
                 continue
 
-            # d. Leakage check stub — always returns False (no leakage)
-            # TODO: replace with real leakage detector in Task 3.1
-            is_leaking = False
+            # d. Leakage check
+            new_col_series = exec_result.output_df[reasoning.feature_name]
+            target_series = exec_result.output_df[target_col]
+            leak = LeakageDetector().is_leaking(
+                new_col_series, target_series, reasoning.feature_name, target_col
+            )
 
-            if is_leaking:
+            if leak.is_leaking:
                 record = IterationRecord(
                     iteration=i,
                     hypothesis=reasoning.hypothesis,
@@ -119,13 +123,14 @@ class AgentLoop:
                     auc_after=auc_before,
                     auc_delta=0.0,
                     shap_summary=_empty_shap_summary(),
-                    decision="error",
-                    error_message="Leakage detected — feature encodes target.",
+                    decision="discarded",
+                    error_message=leak.reason,
                     status="failed",
                 )
                 iteration_records.append(record)
                 trace_entries.append(record.model_dump())
                 _write_trace(trace_entries)
+                print(f"Iteration {i}: leakage detected — {leak.reason}")
                 small_delta_count += 1
                 if small_delta_count >= EARLY_STOP_CONSECUTIVE:
                     print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")

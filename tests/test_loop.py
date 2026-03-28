@@ -17,6 +17,7 @@ from tools.schemas import (
     ExecuteResult,
     FeatureShapEntry,
     IterationRecord,
+    LeakageResult,
     ReasoningOutput,
     ShapSummary,
 )
@@ -391,6 +392,34 @@ class TestTraceSequencing:
         iteration_nums = [e["iteration"] for e in trace[1:]]  # skip baseline
         assert iteration_nums == list(range(1, n + 1))
 
+class TestLeakageDiscarded:
+    def test_leaking_feature_produces_discarded_record(self, tmp_path):
+        reasoning = _make_reasoning(1)
+        exec_res = _make_execute_success(_make_df(), reasoning.feature_name)
+        patches = _patch_all(
+            tmp_path,
+            eval_aucs=[0.70],  # only baseline; leakage skips evaluation
+            reasoning_outputs=[reasoning],
+            execute_results=[exec_res],
+        )
+        leaking = LeakageResult(
+            is_leaking=True,
+            reason="Pearson correlation with target is 0.9800 (threshold: 0.95).",
+        )
+        with _apply_patches(patches):
+            with patch("agent.loop.LeakageDetector") as mock_cls:
+                mock_cls.return_value.is_leaking.return_value = leaking
+                AgentLoop().run("fake.csv", "target", max_iter=1)
+
+        trace = json.loads((tmp_path / "outputs" / "trace.json").read_text())
+        assert len(trace) == 2  # baseline + 1 leakage iteration
+        leaked = trace[1]
+        assert leaked["decision"] == "discarded"
+        assert leaked["status"] == "failed"
+        assert leaked["error_message"] is not None
+
+
+class TestTraceSequencing:
     def test_tmp_file_absent_after_successful_run(self, tmp_path):
         patches = _patch_all(
             tmp_path,
