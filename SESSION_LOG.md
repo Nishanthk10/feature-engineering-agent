@@ -5,7 +5,7 @@
 **Engineer:** Nishanth
 **Branch:** session/s03_guardrails
 **Claude.md version:** v1.2
-**Status:** In Progress
+**Status:** Completed
 
 ## Tasks
 
@@ -13,7 +13,7 @@
 |---------|-----------|--------|--------|
 | 3.1 | Leakage detector | Completed | 8d6bb60 |
 | 3.2 | FeatureCandidate validation and final output | Completed | 8d336f1 |
-| 3.3 | Benchmark evaluation | | |
+| 3.3 | Benchmark evaluation | Completed | 674bb73 |
 
 ---
 
@@ -25,6 +25,8 @@
 | 3.1 | Rejected 3 CC Challenge cases: exact name match, reason content, error_message exact | Covered by existing tests or too brittle |
 | 3.2 | Accepted 3 CC Challenge cases: SHAP fallback, SHAP multi-entry, CSV output | Silent failure modes and data integrity |
 | 3.2 | Rejected 3 CC Challenge cases: report_text formatting details | Cosmetic or already covered |
+| 3.3 | Accepted 4 CC Challenge cases: keyword detection, determinism, churn rate, report content | Silent failure modes and benchmark integrity |
+| 3.3 | Rejected 2 CC Challenge cases: _run_dataset coverage, column dtypes | Live LLM dependency; too brittle |
 
 
 ---
@@ -46,8 +48,8 @@
 ---
 
 ## Session Completion
-**Session integration check:** [ ] PASSED
-**All tasks verified:** [ ] Yes
+**Session integration check:** [x] PASSED
+**All tasks verified:** [x] Yes
 **PR raised:** [ ] Yes — PR #: session/s03_guardrails → main
-**Status updated to:** 
-**Engineer sign-off:**
+**Status updated to:** Completed
+**Engineer sign-off:** Nishanth
