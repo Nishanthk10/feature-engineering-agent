@@ -82,7 +82,9 @@ class TestGetTrace:
         with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
             response = client.get("/trace")
         assert response.status_code == 200
-        assert response.json() == {"trace": []}
+        body = response.json()
+        assert body["trace"] == []
+        assert "status" in body
 
     def test_returns_trace_contents_when_file_exists(self, client, tmp_path):
         trace_data = [{"iteration": 0, "status": "baseline", "auc": 0.70}]
@@ -98,7 +100,57 @@ class TestGetTrace:
         trace_file.write_text("not valid json {")
         with patch("api.main.TRACE_PATH", trace_file):
             response = client.get("/trace")
-        assert response.json() == {"trace": []}
+        assert response.json()["trace"] == []
+
+    def test_status_field_is_idle_when_state_is_idle(self, client, tmp_path):
+        with _state_lock:
+            _state["status"] = "idle"
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace")
+        assert response.json()["status"] == "idle"
+
+    def test_status_field_is_running_when_state_is_running(self, client, tmp_path):
+        with _state_lock:
+            _state["status"] = "running"
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace")
+        assert response.json()["status"] == "running"
+
+    def test_status_field_is_complete_when_state_is_complete(self, client, tmp_path):
+        with _state_lock:
+            _state["status"] = "complete"
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace")
+        assert response.json()["status"] == "complete"
+
+    def test_polling_same_trace_twice_returns_identical_iteration_count(self, client, tmp_path):
+        """
+        The client-side renderedIterations counter relies on the server always
+        returning the full trace (not a cursor/delta). Verify that two successive
+        GET /trace calls with unchanged data return the same number of iterations,
+        confirming the idempotency contract the counter depends on.
+        """
+        trace_data = [
+            {"iteration": 0, "status": "baseline", "auc": 0.70},
+            {"iteration": 1, "status": "completed", "decision": "kept",
+             "auc_before": 0.70, "auc_after": 0.72, "auc_delta": 0.02,
+             "feature_name": "feat_a", "hypothesis": "test"},
+            {"iteration": 2, "status": "completed", "decision": "discarded",
+             "auc_before": 0.72, "auc_after": 0.71, "auc_delta": -0.01,
+             "feature_name": "feat_b", "hypothesis": "test2"},
+        ]
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace_data))
+
+        with patch("api.main.TRACE_PATH", trace_file):
+            first = client.get("/trace").json()["trace"]
+            second = client.get("/trace").json()["trace"]
+
+        assert len(first) == len(second) == 3
+        # Non-baseline entries (what appendNewCards filters on) are stable
+        non_baseline_first = [e for e in first if e.get("status") != "baseline"]
+        non_baseline_second = [e for e in second if e.get("status") != "baseline"]
+        assert len(non_baseline_first) == len(non_baseline_second) == 2
 
 
 # ---------------------------------------------------------------------------

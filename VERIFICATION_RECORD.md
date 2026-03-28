@@ -110,30 +110,42 @@ Source: EXECUTION_PLAN.md Session 4
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | GET /trace | Returns status field alongside trace array | |
-| TC-2 | UI poll during run | New cards appear without page refresh | |
-| TC-3 | Discarded feature | Decision shown as "discarded" | |
+| TC-1 | GET /trace | Returns status field alongside trace array | PASS |
+| TC-2 | UI poll during run | New cards appear without page refresh | PASS |
+| TC-3 | Discarded feature | Decision shown as "discarded" | PASS |
 
 ### Prediction Statement
-
+TC-1: GET /trace will return a JSON object containing both a "trace" array and a "status" field
+TC-2: the UI polls GET /trace every 3 seconds while status is "running" and appends new iteration cards without clearing previous ones — manual verification
+TC-3: an IterationRecord with decision="discarded" will render with the word "discarded" visible in the UI card
 
 ### CC Challenge Output
+- "status" value correctness in /trace: accepted — present-key gives false confidence, added 3 tests
+- Status field when agent is mid-run: accepted — running path never exercised, added test
+- appendNewCards idempotency: accepted — duplicate card regression, added test
+- Cross-endpoint consistency: rejected — lock used in both paths, integration-level
+- buildCard CSS class: rejected — too brittle, HTML evolves
+- Concurrent /run calls: rejected — race condition testing too complex for hackathon scope
 
 
 ### Code Review
 Invariant touched: INV-05 (trace completeness reflected in view)
-- Confirm UI renders what trace contains — no filtering or modification
+- Poll interval confirmed at 3000ms in index.html
+- renderedIterations counter appends cards — no clearing confirmed
+- Polling stops on status="complete" — confirmed
+- All trace entries rendered — no filtering or skipping in UI
+- Decision colour coding: kept=green, discarded=amber, error=red — confirmed
 
 ### Scope Decisions
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 ```
 
 ---

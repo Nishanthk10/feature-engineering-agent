@@ -16,6 +16,20 @@
     table { border-collapse: collapse; width: 100%; margin-top: 12px; }
     th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
     th { background: #e8e8e8; }
+    #reasoning-section { margin-top: 28px; display: none; }
+    #reasoning-section h2 { font-size: 1.2rem; margin-bottom: 8px; }
+    .iter-card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+    .iter-card .iter-title { font-weight: bold; margin-bottom: 4px; }
+    .iter-card .iter-row { margin: 2px 0; font-size: 0.9rem; }
+    .decision-kept   { color: #2a7a2a; font-weight: bold; }
+    .decision-discarded { color: #b85c00; font-weight: bold; }
+    .decision-error  { color: #b00020; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -39,6 +53,12 @@
     <strong>Iteration:</strong> <span id="iteration-text">0</span>
   </div>
 
+  <!-- Live reasoning log — shown while running and after completion -->
+  <div id="reasoning-section">
+    <h2>Live Agent Reasoning</h2>
+    <div id="reasoning-cards"></div>
+  </div>
+
   <div id="results-div">
     <h2>Results</h2>
     <p>
@@ -55,7 +75,9 @@
   </div>
 
   <script>
-    let pollInterval = null;
+    let statusPollInterval = null;
+    let tracePollInterval = null;
+    let renderedIterations = 0;   // tracks how many cards have been appended
 
     document.getElementById('run-form').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -71,11 +93,15 @@
       formData.append('target_col', targetCol);
       formData.append('max_iter', maxIter);
 
+      // Reset UI
       document.getElementById('run-btn').disabled = true;
       document.getElementById('results-div').style.display = 'none';
+      document.getElementById('reasoning-cards').innerHTML = '';
+      document.getElementById('reasoning-section').style.display = 'none';
       document.getElementById('status-div').style.display = 'block';
       document.getElementById('status-text').textContent = 'starting…';
       document.getElementById('iteration-text').textContent = '0';
+      renderedIterations = 0;
 
       try {
         await fetch('/run', { method: 'POST', body: formData });
@@ -85,7 +111,12 @@
         return;
       }
 
-      pollInterval = setInterval(pollStatus, 2000);
+      document.getElementById('reasoning-section').style.display = 'block';
+
+      // Poll /status every 2 s to update the status bar
+      statusPollInterval = setInterval(pollStatus, 2000);
+      // Poll /trace every 3 s to append new iteration cards
+      tracePollInterval = setInterval(pollTrace, 3000);
     });
 
     async function pollStatus() {
@@ -96,27 +127,71 @@
         document.getElementById('iteration-text').textContent = data.iteration;
 
         if (data.status === 'complete') {
-          clearInterval(pollInterval);
-          pollInterval = null;
+          clearInterval(statusPollInterval);
+          statusPollInterval = null;
+          clearInterval(tracePollInterval);
+          tracePollInterval = null;
           document.getElementById('run-btn').disabled = false;
-          await loadTrace();
+          // Final trace fetch for summary and any last cards
+          await pollTrace();
+          await renderSummary();
         }
       } catch (err) {
         console.error('Status poll error:', err);
       }
     }
 
-    async function loadTrace() {
+    async function pollTrace() {
       try {
         const resp = await fetch('/trace');
         const data = await resp.json();
-        renderTrace(data.trace);
+        appendNewCards(data.trace || []);
       } catch (err) {
-        console.error('Trace fetch error:', err);
+        console.error('Trace poll error:', err);
       }
     }
 
-    function renderTrace(trace) {
+    // Appends cards only for iteration records not yet rendered
+    function appendNewCards(trace) {
+      const iterations = trace.filter(e => e.status !== 'baseline');
+      const container = document.getElementById('reasoning-cards');
+      for (let i = renderedIterations; i < iterations.length; i++) {
+        container.appendChild(buildCard(iterations[i]));
+      }
+      renderedIterations = iterations.length;
+    }
+
+    function buildCard(rec) {
+      const delta = rec.auc_delta >= 0
+        ? '+' + rec.auc_delta.toFixed(4)
+        : rec.auc_delta.toFixed(4);
+      const decisionClass = 'decision-' + rec.decision;
+
+      const card = document.createElement('div');
+      card.className = 'iter-card';
+      card.innerHTML =
+        '<div class="iter-title">Iteration ' + rec.iteration + '</div>' +
+        '<div class="iter-row"><strong>Hypothesis:</strong> ' + escHtml(rec.hypothesis) + '</div>' +
+        '<div class="iter-row"><strong>Feature:</strong> ' + escHtml(rec.feature_name) + '</div>' +
+        '<div class="iter-row"><strong>AUC:</strong> ' +
+          rec.auc_before.toFixed(4) + ' → ' + rec.auc_after.toFixed(4) +
+          ' (delta: ' + delta + ')</div>' +
+        '<div class="iter-row"><strong>Decision:</strong> ' +
+          '<span class="' + decisionClass + '">' + escHtml(rec.decision) + '</span></div>';
+      return card;
+    }
+
+    async function renderSummary() {
+      try {
+        const resp = await fetch('/trace');
+        const data = await resp.json();
+        renderFinalResults(data.trace || []);
+      } catch (err) {
+        console.error('Summary fetch error:', err);
+      }
+    }
+
+    function renderFinalResults(trace) {
       const resultsDiv = document.getElementById('results-div');
       if (!trace || trace.length === 0) {
         resultsDiv.style.display = 'block';
@@ -131,7 +206,9 @@
 
       const baselineAuc = baseline ? baseline.auc.toFixed(4) : '—';
       const lastKept = kept[kept.length - 1];
-      const finalAuc = lastKept ? lastKept.auc_after.toFixed(4) : (baseline ? baseline.auc.toFixed(4) : '—');
+      const finalAuc = lastKept
+        ? lastKept.auc_after.toFixed(4)
+        : (baseline ? baseline.auc.toFixed(4) : '—');
 
       document.getElementById('baseline-auc').textContent = baselineAuc;
       document.getElementById('final-auc').textContent = finalAuc;

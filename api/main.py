@@ -93,13 +93,15 @@ def get_status():
 
 @app.get("/trace")
 def get_trace():
+    with _state_lock:
+        status = _state["status"]
     if not TRACE_PATH.exists():
-        return {"trace": []}
+        return {"trace": [], "status": status}
     try:
         data = json.loads(TRACE_PATH.read_text())
-        return {"trace": data}
+        return {"trace": data, "status": status}
     except (json.JSONDecodeError, OSError):
-        return {"trace": []}
+        return {"trace": [], "status": status}
 
 
 @app.get("/")
