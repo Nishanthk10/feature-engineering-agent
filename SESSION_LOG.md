@@ -14,7 +14,7 @@
 | 2.1 | Code execution sandbox | Completed | f9d19f6 |
 | 2.2 | SHAP tool | Completed | 2ecc7fb |
 | 2.3 | LLM reasoning layer | Completed | 15e7d1e |
-| 2.4 | Agent loop wiring | | |
+| 2.4 | Agent loop wiring | Completed | 637e25b |
 
 ---
 
@@ -28,6 +28,8 @@
 | 2.2 | Rejected 2 CC Challenge cases: decimal formatting, feature_name mapping | Too brittle; already covered |
 | 2.3 | Accepted 4 CC Challenge cases: history truncation, empty history, ValidationError, model name | Direct invariant and Fixed Stack coverage |
 | 2.3 | Rejected 5 CC Challenge cases: prompt content assertions, system param, extra keys | Too brittle or library guarantees |
+| 2.4 | Accepted 6 CC Challenge cases: kept/discarded working_df, final_feature_set, hard cap test, sequential numbering, tmp absent | Core loop correctness and INV-04/INV-05 coverage |
+| 2.4 | Rejected 5 CC Challenge cases: final_auc, auc chain, summary line, CLI forwarding | Covered elsewhere or cosmetic |
 
 
 
@@ -52,6 +54,7 @@
 | Change | Reason | New Claude.md version | Tasks re-verified |
 |--------|--------|-----------------------|-------------------|
 | IterationRecord expanded from minimal to full schema in tools/schemas.py | Task 2.4 requires full schema — gap surfaced by CC at end of Task 2.3 | v1.0 unchanged — schema addition is additive, no invariant conflict | Tasks 2.3 re-verified — all 8 still pass |
+| LLM provider abstracted + tests/test_llm_client.py added to scope boundary | No Anthropic key available — Gemini default. Toggle supports 4 providers. test_llm_client.py omitted from scope boundary in first v1.2 draft — corrected | v1.2 | Tasks 2.3 re-verified after refactor |
 
 ---
 

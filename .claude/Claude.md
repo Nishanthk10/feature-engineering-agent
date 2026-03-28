@@ -1,4 +1,4 @@
-# Claude.md — v1.0 · FROZEN · 2026-03-22
+# Claude.md — v1.2 · FROZEN · 2026-03-22
 
 ---
 
@@ -69,6 +69,7 @@ INVARIANT: A failure in any MLflow logging call must never stop or crash the age
 - `tests/test_regression.py`
 - `tests/test_mlflow.py`
 - `tests/test_e2e.py`
+- `tests/test_llm_client.py`
 - `requirements.txt`
 - `README.md`
 - `.env.example`
@@ -95,8 +96,13 @@ If something is not in the task prompt, do the minimum and flag the gap. Never f
 | Component | Technology | Version / Notes |
 |---|---|---|
 | Language | Python | 3.11+ |
-| LLM | Claude claude-sonnet-4-20250514 | via `anthropic` SDK |
-| LLM client env var | `ANTHROPIC_API_KEY` | loaded from `.env` via python-dotenv |
+| LLM provider | Configurable via LLM_PROVIDER env var | Supported: gemini (default), openai, anthropic, huggingface |
+| Default model | Google Gemini | gemini-2.0-flash via google-generativeai SDK |
+| OpenAI model | gpt-4o | via openai SDK |
+| Anthropic model | claude-sonnet-4-20250514 | via anthropic SDK |
+| HuggingFace model | mistralai/Mistral-7B-Instruct-v0.2 | via huggingface_hub InferenceClient |
+| LLM env vars | LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY | All optional except the key matching LLM_PROVIDER |
+| LLM provider default | gemini | Used when LLM_PROVIDER is not set |
 | ML model (classification) | LightGBM | `LGBMClassifier`, n_estimators=50, max_depth=4, random_state=42, class_weight="balanced" |
 | ML model (regression) | LightGBM | `LGBMRegressor`, n_estimators=50, max_depth=4, random_state=42 |
 | Task type | `TaskType` enum | `classification` or `regression`. Auto-detected or via `--task-type` flag. Locked before loop starts |

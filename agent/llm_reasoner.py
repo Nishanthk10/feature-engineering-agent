@@ -1,16 +1,12 @@
 import json
 import os
 
-import anthropic
-
 from tools.schemas import (
     DatasetProfile,
     IterationRecord,
     ReasoningOutput,
     ShapSummary,
 )
-
-MODEL = "claude-sonnet-4-20250514"
 
 SYSTEM_PROMPT = """\
 You are an expert data scientist specialising in feature engineering.
@@ -66,9 +62,62 @@ Propose the single most promising next feature to engineer.\
 """
 
 
+class LLMClient:
+    def complete(self, system: str, user: str) -> str:
+        provider = os.environ.get("LLM_PROVIDER", "gemini")
+
+        if provider == "gemini":
+            import google.generativeai as genai
+            genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+            model = genai.GenerativeModel("gemini-2.0-flash")
+            response = model.generate_content(system + "\n\n" + user)
+            return response.text
+
+        elif provider == "openai":
+            from openai import OpenAI
+            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            return response.choices[0].message.content
+
+        elif provider == "anthropic":
+            import anthropic
+            client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+            response = client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=1000,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+            )
+            return response.content[0].text
+
+        elif provider == "huggingface":
+            from huggingface_hub import InferenceClient
+            client = InferenceClient(
+                model="mistralai/Mistral-7B-Instruct-v0.2",
+                token=os.environ.get("HUGGINGFACE_API_KEY"),
+            )
+            response = client.text_generation(
+                system + "\n\n" + user,
+                max_new_tokens=1000,
+            )
+            return response
+
+        else:
+            raise ValueError(
+                f"Unsupported LLM_PROVIDER: {provider}. "
+                "Supported: gemini, openai, anthropic, huggingface"
+            )
+
+
 class LLMReasoner:
     def __init__(self) -> None:
-        self._client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        self._client = LLMClient()
 
     def reason(
         self,
@@ -79,14 +128,7 @@ class LLMReasoner:
     ) -> ReasoningOutput:
         user_prompt = _build_user_prompt(profile, shap_summary, iteration_history, current_features)
 
-        message = self._client.messages.create(
-            model=MODEL,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-
-        raw = message.content[0].text
+        raw = self._client.complete(SYSTEM_PROMPT, user_prompt)
 
         try:
             data = json.loads(raw)

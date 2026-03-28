@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from agent.llm_reasoner import LLMReasoner, MODEL
+from agent.llm_reasoner import LLMClient, LLMReasoner, SYSTEM_PROMPT
 from tools.schemas import (
     DatasetProfile,
     EvaluationResult,
@@ -85,96 +85,74 @@ def make_record(iteration: int) -> IterationRecord:
     )
 
 
-def _mock_client(response_text: str) -> MagicMock:
-    """Return a mock anthropic.Anthropic() whose messages.create returns response_text."""
-    mock_content = MagicMock()
-    mock_content.text = response_text
-    mock_message = MagicMock()
-    mock_message.content = [mock_content]
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = mock_message
-    return mock_client
+def _patch_complete(response_text: str):
+    """Patch LLMClient.complete to return response_text."""
+    return patch.object(LLMClient, "complete", return_value=response_text)
 
 
 class TestLLMReasonerValidResponse:
     def test_valid_json_parses_into_reasoning_output(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(VALID_RESPONSE))):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), make_history(), ["age_sq"])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), ["age_sq"])
         assert isinstance(result, ReasoningOutput)
 
     def test_hypothesis_field_populated(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(VALID_RESPONSE))):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), make_history(), [])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
         assert result.hypothesis == VALID_RESPONSE["hypothesis"]
 
     def test_feature_name_field_populated(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(VALID_RESPONSE))):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), make_history(), [])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
         assert result.feature_name == VALID_RESPONSE["feature_name"]
 
     def test_transformation_code_present_and_non_empty(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(VALID_RESPONSE))):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), make_history(), [])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
         assert isinstance(result.transformation_code, str)
         assert len(result.transformation_code.strip()) > 0
 
     def test_decision_rationale_field_populated(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(VALID_RESPONSE))):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), make_history(), [])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
         assert result.decision_rationale == VALID_RESPONSE["decision_rationale"]
 
 
 class TestLLMReasonerInvalidResponse:
     def test_malformed_json_raises_value_error(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client("not valid json {")):
-            reasoner = LLMReasoner()
+        with _patch_complete("not valid json {"):
             with pytest.raises(ValueError):
-                reasoner.reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
 
     def test_value_error_includes_raw_response(self):
         raw = "definitely not json"
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(raw)):
-            reasoner = LLMReasoner()
+        with _patch_complete(raw):
             with pytest.raises(ValueError, match=raw):
-                reasoner.reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
 
     def test_empty_response_raises_value_error(self):
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client("")):
-            reasoner = LLMReasoner()
+        with _patch_complete(""):
             with pytest.raises(ValueError):
-                reasoner.reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
 
     def test_missing_required_key_raises_validation_error(self):
         incomplete = {k: v for k, v in VALID_RESPONSE.items() if k != "transformation_code"}
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=_mock_client(json.dumps(incomplete))):
-            reasoner = LLMReasoner()
+        with _patch_complete(json.dumps(incomplete)):
             with pytest.raises(ValidationError):
-                reasoner.reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
 
 
 class TestLLMReasonerAPICall:
-    def test_model_passed_to_api_is_correct(self):
-        mock_client = _mock_client(json.dumps(VALID_RESPONSE))
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=mock_client):
-            reasoner = LLMReasoner()
-            reasoner.reason(make_profile(), make_shap_summary(), [], [])
-        _, kwargs = mock_client.messages.create.call_args
-        assert kwargs["model"] == MODEL
+    def test_complete_called_once_per_reason_call(self):
+        with patch.object(LLMClient, "complete", return_value=json.dumps(VALID_RESPONSE)) as mock_complete:
+            LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+        mock_complete.assert_called_once()
 
     def test_history_of_5_truncates_to_last_3(self):
         history = [make_record(i) for i in range(1, 6)]  # iterations 1–5
-        mock_client = _mock_client(json.dumps(VALID_RESPONSE))
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=mock_client):
-            reasoner = LLMReasoner()
-            reasoner.reason(make_profile(), make_shap_summary(), history, [])
-        _, kwargs = mock_client.messages.create.call_args
-        user_prompt = kwargs["messages"][0]["content"]
-        # Only iterations 3, 4, 5 should appear; iteration 1 and 2 must not
+        with patch.object(LLMClient, "complete", return_value=json.dumps(VALID_RESPONSE)) as mock_complete:
+            LLMReasoner().reason(make_profile(), make_shap_summary(), history, [])
+        _, user_prompt = mock_complete.call_args[0]
         assert "Hypothesis 3" in user_prompt
         assert "Hypothesis 4" in user_prompt
         assert "Hypothesis 5" in user_prompt
@@ -182,8 +160,6 @@ class TestLLMReasonerAPICall:
         assert "Hypothesis 2" not in user_prompt
 
     def test_empty_history_does_not_raise(self):
-        mock_client = _mock_client(json.dumps(VALID_RESPONSE))
-        with patch("agent.llm_reasoner.anthropic.Anthropic", return_value=mock_client):
-            reasoner = LLMReasoner()
-            result = reasoner.reason(make_profile(), make_shap_summary(), [], [])
+        with _patch_complete(json.dumps(VALID_RESPONSE)):
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
         assert isinstance(result, ReasoningOutput)
