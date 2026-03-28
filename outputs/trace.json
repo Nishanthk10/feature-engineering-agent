@@ -21,81 +21,81 @@
   },
   {
     "iteration": 1,
-    "hypothesis": "The intensity of contact relative to the recency of contact often indicates customer engagement or potential churn risk. Creating an average interaction frequency provides a dynamic view of how often the customer is reached per day of inactivity.",
-    "feature_name": "contact_density_index",
-    "transformation_code": "df['contact_density_index'] = df['num_contacts'] / (df['last_contact_days'] + 1)",
+    "hypothesis": "The ratio of account balance to income serves as a proxy for financial liquidity and potential savings behavior, which often differentiates customer segments better than raw values alone.",
+    "feature_name": "balance_to_income_ratio",
+    "transformation_code": "df['balance_to_income_ratio'] = df['account_balance'] / (df['income'] + 1e-6)",
     "auc_before": 0.6145454545454545,
-    "auc_after": 0.5753535353535354,
-    "auc_delta": -0.03919191919191911,
+    "auc_after": 0.6067676767676767,
+    "auc_delta": -0.007777777777777772,
     "shap_summary": {
       "ranked_features": [
         {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.24929930732997221,
+          "feature_name": "balance_to_income_ratio",
+          "mean_abs_shap": 0.2270416659018447,
           "rank": 1
         },
         {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.15294568461598743,
+          "feature_name": "last_contact_days",
+          "mean_abs_shap": 0.19097844372428277,
           "rank": 2
         },
         {
-          "feature_name": "contact_density_index",
-          "mean_abs_shap": 0.1485658237699111,
+          "feature_name": "job_code",
+          "mean_abs_shap": 0.15237780204058132,
           "rank": 3
         },
         {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.12443909559763547,
+          "feature_name": "income",
+          "mean_abs_shap": 0.13954024128930537,
           "rank": 4
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 0.11656393172295612,
+          "feature_name": "age",
+          "mean_abs_shap": 0.1255613970887912,
           "rank": 5
         },
         {
-          "feature_name": "age",
-          "mean_abs_shap": 0.0993261625957624,
+          "feature_name": "account_balance",
+          "mean_abs_shap": 0.12206284736462117,
           "rank": 6
         },
         {
           "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.07900007288962582,
+          "mean_abs_shap": 0.08035819301499358,
           "rank": 7
         },
         {
           "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.050898851507438045,
+          "mean_abs_shap": 0.04751100479664398,
           "rank": 8
         },
         {
           "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04934535931517375,
+          "mean_abs_shap": 0.04720174540913626,
           "rank": 9
         },
         {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.03174025101718422,
+          "feature_name": "education_code",
+          "mean_abs_shap": 0.04472610928208685,
           "rank": 10
         },
         {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.03144628823862465,
+          "feature_name": "city_code",
+          "mean_abs_shap": 0.036584070471876944,
           "rank": 11
         },
         {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.03024554102472274,
+          "feature_name": "num_contacts",
+          "mean_abs_shap": 0.031069497460098763,
           "rank": 12
         },
         {
           "feature_name": "num_products",
-          "mean_abs_shap": 0.01611010021448014,
+          "mean_abs_shap": 0.02028734091433675,
           "rank": 13
         }
       ],
-      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.249), (2) job_code (shap=0.153), (3) contact_density_index (shap=0.149)"
+      "top_3_summary": "Top features by importance: (1) balance_to_income_ratio (shap=0.227), (2) last_contact_days (shap=0.191), (3) job_code (shap=0.152)"
     },
     "decision": "discarded",
     "error_message": null,
@@ -103,692 +103,83 @@
   },
   {
     "iteration": 2,
-    "hypothesis": "The ratio of liquid capital to the volume of products held represents a 'product density' metric. This captures the financial stress or resource allocation per account product, which is often a strong signal for customer retention and behavior.",
-    "feature_name": "balance_per_product",
-    "transformation_code": "df['balance_per_product'] = df['account_balance'] / (df['num_products'] + 1)",
-    "auc_before": 0.6145454545454545,
-    "auc_after": 0.628080808080808,
-    "auc_delta": 0.013535353535353511,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.2142675994337538,
-          "rank": 1
-        },
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1813356276766376,
-          "rank": 2
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.15192375200308417,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.14450482942094378,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.1334745391386141,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.10999956589446652,
-          "rank": 6
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.08944579912985111,
-          "rank": 7
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.07370374701029576,
-          "rank": 8
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.05128689553865871,
-          "rank": 9
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.05126825648066373,
-          "rank": 10
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.04810686093254911,
-          "rank": 11
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.030430027853242735,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.025650519257093163,
-          "rank": 13
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.214), (2) last_contact_days (shap=0.181), (3) job_code (shap=0.152)"
-    },
-    "decision": "kept",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 3,
-    "hypothesis": "The relationship between income and account balance (savings rate/financial cushion) is a strong predictor of customer stability. Since account_balance is the most important feature and income is a primary financial indicator, creating a 'savings_velocity' ratio (account_balance / income) captures the client's ability to maintain liquidity relative to their earnings, normalizing for wealth levels.",
-    "feature_name": "savings_velocity",
-    "transformation_code": "df['savings_velocity'] = df['account_balance'] / df['income'].replace(0, 1e-9)",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.595050505050505,
-    "auc_delta": -0.033030303030302965,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "savings_velocity",
-          "mean_abs_shap": 0.23099987479576303,
-          "rank": 1
-        },
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1930419907448662,
-          "rank": 2
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.1564939269498511,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13528261175235712,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.1329439085237357,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.10270452421819018,
-          "rank": 6
-        },
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.09266764445575831,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.07521033381655007,
-          "rank": 8
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04661769764997614,
-          "rank": 9
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.04329541308812541,
-          "rank": 10
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.03893871780851266,
-          "rank": 11
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.038787373951298505,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.03267155491042591,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.017866533201714288,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) savings_velocity (shap=0.231), (2) last_contact_days (shap=0.193), (3) job_code (shap=0.156)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 4,
-    "hypothesis": "The interaction between 'num_contacts' and 'last_contact_days' (inverse frequency) is more predictive when normalized by the customer's tenure. A high number of contacts over a short period for a new customer vs. a long-tenured customer likely represents different behavioral intents (e.g., onboarding vs. attrition risk). Creating a 'contact_intensity_per_year' feature captures how aggressive the marketing/engagement strategy is relative to the customer's loyalty history.",
-    "feature_name": "contact_intensity_per_year",
-    "transformation_code": "df['contact_intensity_per_year'] = df['num_contacts'] / (df['years_as_customer'] + 1)",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.6274747474747475,
-    "auc_delta": -0.0006060606060604989,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.1805061992586529,
-          "rank": 1
-        },
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1653281560914196,
-          "rank": 2
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13067184980977753,
-          "rank": 3
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.12799155964216274,
-          "rank": 4
-        },
-        {
-          "feature_name": "contact_intensity_per_year",
-          "mean_abs_shap": 0.12247528355146123,
-          "rank": 5
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.11239024829024029,
-          "rank": 6
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.09666892571109718,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.06956067358712409,
-          "rank": 8
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.05336752819764534,
-          "rank": 9
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.05274674059013226,
-          "rank": 10
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.04957744404520595,
-          "rank": 11
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04578113369785502,
-          "rank": 12
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.039679064972742276,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.01230503905691707,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.181), (2) last_contact_days (shap=0.165), (3) income (shap=0.131)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 5,
-    "hypothesis": "The interaction between account balance and tenure (account_balance / years_as_customer) creates a 'loyalty-adjusted wealth' metric. This distinguishes between long-term customers who have built savings over time versus newer customers with high balances, which is a critical signal for predicting financial product uptake or churn risk.",
-    "feature_name": "wealth_accumulation_rate",
-    "transformation_code": "df['wealth_accumulation_rate'] = df['account_balance'] / (df['years_as_customer'] + 1)",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.5917171717171716,
-    "auc_delta": -0.036363636363636376,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "wealth_accumulation_rate",
-          "mean_abs_shap": 0.20063146879701965,
-          "rank": 1
-        },
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1720779109097452,
-          "rank": 2
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.1476673855963522,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13185690293283917,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.11373780263459546,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.09513474491788258,
-          "rank": 6
-        },
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.0765772479605947,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.06475621626907932,
-          "rank": 8
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.055933125227518865,
-          "rank": 9
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.05022380774140129,
-          "rank": 10
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.03949319441335085,
-          "rank": 11
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.039235753234551383,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.025461017146993493,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.011320969957627465,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) wealth_accumulation_rate (shap=0.201), (2) last_contact_days (shap=0.172), (3) job_code (shap=0.148)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 6,
-    "hypothesis": "The most important features are 'account_balance' and 'last_contact_days'. A high account balance coupled with recent contact suggests an active, potentially high-value lead that may be more sensitive to engagement. By interacting these via a multiplicative term, we capture the intensity of the contact effect scaled by the financial stake of the client.",
-    "feature_name": "balance_contact_interaction",
-    "transformation_code": "df['balance_contact_interaction'] = df['account_balance'] * (1 / (df['last_contact_days'] + 1))",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.6090909090909091,
-    "auc_delta": -0.01898989898989889,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.24233148078996014,
-          "rank": 1
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.15913243841521013,
-          "rank": 2
-        },
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.15208471029017911,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.12287595322357779,
-          "rank": 4
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.11780069520532573,
-          "rank": 5
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.11727506468131647,
-          "rank": 6
-        },
-        {
-          "feature_name": "balance_contact_interaction",
-          "mean_abs_shap": 0.09828560630459492,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.09452292164640642,
-          "rank": 8
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.05517336583451317,
-          "rank": 9
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.04771670959133636,
-          "rank": 10
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.04696624479120011,
-          "rank": 11
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.040091973889038346,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.027673994153002857,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.027365537450057032,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) last_contact_days (shap=0.242), (2) job_code (shap=0.159), (3) account_balance (shap=0.152)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 7,
-    "hypothesis": "The feature 'account_balance' is the strongest signal, but its absolute value is often dependent on the customer's 'income'. Creating a debt-to-income or savings-to-income ratio helps capture the financial liquidity or investment capacity of the customer, which provides a more nuanced measure of wealth than 'account_balance' alone.",
-    "feature_name": "savings_to_income_ratio",
-    "transformation_code": "df['savings_to_income_ratio'] = df['account_balance'] / (df['income'] + 1e-6)",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.595050505050505,
-    "auc_delta": -0.033030303030302965,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "savings_to_income_ratio",
-          "mean_abs_shap": 0.23099987479576303,
-          "rank": 1
-        },
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1930419907448662,
-          "rank": 2
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.1564939269498511,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13528261175235712,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.1329439085237357,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.10270452421819018,
-          "rank": 6
-        },
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.09266764445575831,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.07521033381655007,
-          "rank": 8
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04661769764997614,
-          "rank": 9
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.04329541308812541,
-          "rank": 10
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.03893871780851266,
-          "rank": 11
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.038787373951298505,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.03267155491042591,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.017866533201714288,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) savings_to_income_ratio (shap=0.231), (2) last_contact_days (shap=0.193), (3) job_code (shap=0.156)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 8,
-    "hypothesis": "The frequency of contact relative to the duration of the customer relationship captures the 'contact intensity'. Customers contacted frequently over a short period may be experiencing high-pressure sales or service issues, whereas frequent contact over a long tenure suggests a stable, managed relationship. This interaction differentiates engagement styles better than raw contact counts.",
+    "hypothesis": "The frequency of contact relative to the duration of the relationship provides a measure of 'intensity' or 'churn pressure'. A high number of contacts over a short period may indicate an aggressive retention campaign, while frequent contacts over a very long tenure might indicate a high-touch or high-value client relationship.",
     "feature_name": "contact_intensity_ratio",
     "transformation_code": "df['contact_intensity_ratio'] = df['num_contacts'] / (df['years_as_customer'] + 1)",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.6274747474747475,
-    "auc_delta": -0.0006060606060604989,
+    "auc_before": 0.6145454545454545,
+    "auc_after": 0.6255555555555556,
+    "auc_delta": 0.011010101010101137,
     "shap_summary": {
       "ranked_features": [
         {
           "feature_name": "account_balance",
-          "mean_abs_shap": 0.1805061992586529,
+          "mean_abs_shap": 0.24650253138002615,
           "rank": 1
         },
         {
           "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.1653281560914196,
+          "mean_abs_shap": 0.17190179471790143,
           "rank": 2
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13067184980977753,
-          "rank": 3
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.12799155964216274,
-          "rank": 4
         },
         {
           "feature_name": "contact_intensity_ratio",
-          "mean_abs_shap": 0.12247528355146123,
-          "rank": 5
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.11239024829024029,
-          "rank": 6
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.09666892571109718,
-          "rank": 7
-        },
-        {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.06956067358712409,
-          "rank": 8
-        },
-        {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.05336752819764534,
-          "rank": 9
-        },
-        {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.05274674059013226,
-          "rank": 10
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.04957744404520595,
-          "rank": 11
-        },
-        {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04578113369785502,
-          "rank": 12
-        },
-        {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.039679064972742276,
-          "rank": 13
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.01230503905691707,
-          "rank": 14
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.181), (2) last_contact_days (shap=0.165), (3) income (shap=0.131)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 9,
-    "hypothesis": "The interaction between 'job_code' (the third most important feature) and 'income' captures socio-economic status variations more granularly than either feature alone. Certain jobs are highly correlated with specific income ranges; residuals from this relationship (e.g., high income for a job class typically associated with lower income) often signal 'high-net-worth' individuals within a specific cohort, which can be a strong predictor of behavior.",
-    "feature_name": "job_income_relative_rank",
-    "transformation_code": "df['job_income_relative_rank'] = df.groupby('job_code')['income'].transform(lambda x: (x - x.mean()) / (x.std() + 1e-6))",
-    "auc_before": 0.628080808080808,
-    "auc_after": 0.6152525252525252,
-    "auc_delta": -0.012828282828282855,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.18166527358582857,
-          "rank": 1
-        },
-        {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.16788829498307795,
-          "rank": 2
-        },
-        {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.1503824684135806,
+          "mean_abs_shap": 0.15344134816251664,
           "rank": 3
         },
         {
-          "feature_name": "job_income_relative_rank",
-          "mean_abs_shap": 0.12844909769777238,
+          "feature_name": "job_code",
+          "mean_abs_shap": 0.14033051215527467,
           "rank": 4
         },
         {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.1267233263434138,
+          "feature_name": "income",
+          "mean_abs_shap": 0.12969386942158084,
           "rank": 5
         },
         {
           "feature_name": "age",
-          "mean_abs_shap": 0.12474297580387075,
+          "mean_abs_shap": 0.11763944678162674,
           "rank": 6
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 0.10191091438405665,
+          "feature_name": "marital_status_code",
+          "mean_abs_shap": 0.0944790108402324,
           "rank": 7
         },
         {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.08597516004203136,
+          "feature_name": "prev_outcome",
+          "mean_abs_shap": 0.051746509279869554,
           "rank": 8
         },
         {
           "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.06043814429812282,
+          "mean_abs_shap": 0.04915349190879275,
           "rank": 9
         },
         {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.05362332814423859,
+          "feature_name": "city_code",
+          "mean_abs_shap": 0.041707370422152806,
           "rank": 10
         },
         {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04697135565206949,
+          "feature_name": "num_contacts",
+          "mean_abs_shap": 0.0414186613614409,
           "rank": 11
         },
         {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.04607589333725961,
+          "feature_name": "education_code",
+          "mean_abs_shap": 0.040526400191343896,
           "rank": 12
         },
         {
           "feature_name": "num_products",
-          "mean_abs_shap": 0.04420064481792009,
+          "mean_abs_shap": 0.03801368861036641,
           "rank": 13
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.03489167992463357,
-          "rank": 14
         }
       ],
-      "top_3_summary": "Top features by importance: (1) last_contact_days (shap=0.182), (2) account_balance (shap=0.168), (3) job_code (shap=0.150)"
+      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.247), (2) last_contact_days (shap=0.172), (3) contact_intensity_ratio (shap=0.153)"
     },
-    "decision": "discarded",
+    "decision": "kept",
     "error_message": null,
     "status": "completed"
   }

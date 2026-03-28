@@ -1,45 +1,46 @@
 # VERIFICATION_RECORD.md
 
-**Session:** S3 — Guardrails + Evaluation
+**Session:** S4 — MCP Exposure + UI
 **Date:** 2026-03-28
 **Engineer:** Nishanth
 
 ---
 
-## Task 3.1 — Leakage detector
+## Task 4.1 — MCP server
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 3
+Source: EXECUTION_PLAN.md Session 4
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Feature identical to target values | is_leaking=True, reason set | PASS |
-| TC-2 | Feature name contains target col name | is_leaking=True | PASS |
-| TC-3 | Uncorrelated random feature | is_leaking=False | PASS |
-| TC-4 | Leaking feature in loop | IterationRecord decision="discarded" | PASS |
+| TC-1 | profile_dataset called directly | Returns dict with row_count key | PASS |
+| TC-2 | execute_feature_code valid code | Returns dict with success=True | PASS |
+| TC-3 | evaluate_features on small df | Returns dict with auc key | PASS |
+| TC-4 | get_shap_values on eval result | Returns dict with ranked_features key | PASS |
 
 ### Prediction Statement
-TC-1: a feature series identical to the target will return is_leaking=True with reason set describing the correlation check
-TC-2: a feature whose name contains the target column name as a substring will return is_leaking=True
-TC-3: a genuinely random feature uncorrelated with the target will return is_leaking=False with reason=None
-TC-4: when the loop encounters a leaking feature it will write an IterationRecord with decision="discarded" and continue to the next iteration without calling EvaluateTool
+TC-1: profile_dataset called directly with a valid CSV path and target column will return a dict containing row_count key
+TC-2: execute_feature_code with valid pandas transformation code will return a dict with success=True
+TC-3: evaluate_features on a small DataFrame will return a dict containing an auc key with a float value
+TC-4: get_shap_values on a valid EvaluationResult JSON will return a dict containing ranked_features key as a list
 
 ### CC Challenge Output
-- MI path never triggered: accepted — third check had zero coverage, added TestLeakageDetectorMIBranch
-- feature_name == target_col exactly: rejected — substring check covers exact match
-- Loop decision="discarded" assertion: accepted — added TestLeakageDiscarded in test_loop.py
-- reason content correctness: rejected — non-None check sufficient, exact wording too brittle
-- NaN/constant feature series: accepted — added constant feature edge case tests
-- error_message equals leak.reason: rejected — implementation internals
-
+- get_shap_values invalid JSON: accepted — unhandled exception crashes server, added try/except and test
+- Blocked import at MCP layer: accepted — security boundary uncovered, added test
+- FastMCP registration: accepted — silent decorator failure invisible, added test
+- profile_dataset nonexistent path: rejected — covered in test_data_loader.py
+- row count preservation: rejected — covered in test_execute.py
+- feature_names excludes target: rejected — covered in test_evaluate.py
 
 
 ### Code Review
-INV-02 confirmed:
-- LeakageDetector called after ExecuteTool success — confirmed in loop.py
-- EvaluateTool only called when is_leaking=False — confirmed in loop.py
-- Leaking feature writes decision="discarded" and continues — confirmed in loop.py
-- All 3 checks present: name substring, Pearson correlation > 0.95, MI > 0.9o
+Invariant touched: INV-08 (MCP tool contract stability)
+- profile_dataset signature matches DatasetProfile schema — confirmed
+- execute_feature_code signature matches ExecuteResult schema — confirmed
+- evaluate_features signature matches EvaluationResult schema — confirmed
+- get_shap_values signature matches ShapSummary schema — confirmed
+- All tools return model_dump() — no raw objects — confirmed
+- No tool modifies TaskType — confirmed
 
 ### Scope Decisions
 
@@ -54,41 +55,40 @@ INV-02 confirmed:
 
 ---
 
-## Task 3.2 — FeatureCandidate validation and final output
+## Task 4.2 — FastAPI backend
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 3
+Source: EXECUTION_PLAN.md Session 4
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | FeatureCandidate with empty hypothesis | ValueError raised | PASS |
-| TC-2 | Mix of kept/discarded in trace | only kept in FormattedOutput.kept_features | PASS |
-| TC-3 | auc_lift calculation | Equals final_auc - baseline_auc | PASS |
-| TC-4 | final_features.csv written | Exists, has one row per kept feature | PASS |
+| TC-1 | GET / | Returns 200 | PASS |
+| TC-2 | GET /trace, no file | Returns {"trace": []} | PASS |
+| TC-3 | GET /status on startup | Returns {"status": "idle"} | PASS |
+| TC-4 | POST /run with valid CSV | Returns {"status": "started"} | PASS |
 
 ### Prediction Statement
-TC-1: creating a FeatureCandidate with an empty hypothesis string will raise ValueError from Pydantic validation
-TC-2: FormattedOutput.kept_features will contain only entries with decision="kept" — discarded and error entries excluded
-TC-3: auc_lift will equal final_auc minus baseline_auc exactly
-TC-4: outputs/final_features.csv will exist after a run and contain one row per kept feature
+TC-1: GET / will return HTTP 200 with the index.html content
+TC-2: GET /trace when no trace.json exists will return {"trace": []} without error
+TC-3: GET /status on a fresh startup will return {"status": "idle"} before any run has been triggered
+TC-4: POST /run with a valid CSV file and target column name will return {"status": "started"} immediately without waiting for the agent to complete
+
 
 ### CC Challenge Output
-- SHAP lookup fallback: accepted — silent failure mode, added test
-- SHAP selected from multi-entry summary: accepted — real bug risk, added test
-- outputs/final_features.csv: accepted — silent failure mode, added tests
-- report_text lift value: rejected — cosmetic, not an invariant
-- report_text numbered list structure: rejected — too brittle
-- K features kept count: rejected — covered by kept-only filtering test
+- Exception in _run_agent stuck at "running": accepted — silent failure mode, added test
+- Missing required fields returns 422: accepted — API contract, added tests
+- max_iter defaults to 5: accepted — stated requirement, added test
+- State transitions to "running": rejected — exception test covers finally block implicitly
+- GET /trace key name: rejected — covered by equality check
+- _run_agent normal completion: rejected — covered by exception test
+- GET / input elements: rejected — too brittle, HTML evolves in Task 4.3
 
 
 ### Code Review
-Invariant touched: INV-07 (feature candidate schema)
-- @field_validator on name — confirmed in schemas.py
-- @field_validator on transformation_code — confirmed in schemas.py
-- @field_validator on hypothesis — confirmed in schemas.py
-- Empty string raises ValueError — confirmed
-- Whitespace-only string raises ValueError — confirmed
-- Final output render only accepts kept features — confirmed in output_formatter.py
+No invariants directly touched — UI layer only.
+- Background thread confirmed as daemon — agent run does not block request
+- GET /trace returns {"trace": []} on missing file — confirmed, no 500
+- GET / serves static/index.html via FileResponse — confirmed
 
 ### Scope Decisions
 
@@ -103,35 +103,38 @@ Invariant touched: INV-07 (feature candidate schema)
 
 ---
 
-## Task 3.3 — Benchmark evaluation
+## Task 4.3 — Streaming iteration updates
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 3
+Source: EXECUTION_PLAN.md Session 4
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | generate_synthetic.py runs | 1000 rows, churn column present | PASS |
-| TC-2 | Baseline AUC on synthetic | < 0.75 (hidden signal not in raw features) | PASS |
-| TC-3 | benchmark_report.md written | Contains both dataset results | PASS |
+| TC-1 | GET /trace | Returns status field alongside trace array | PASS |
+| TC-2 | UI poll during run | New cards appear without page refresh | PASS |
+| TC-3 | Discarded feature | Decision shown as "discarded" | PASS |
 
 ### Prediction Statement
-TC-1: generate_synthetic.py will create data/synthetic_churn.csv with exactly 1000 rows and a column named churn
-TC-2: running EvaluateTool on raw features of synthetic_churn.csv will return AUC below 0.75 — confirming hidden signal is not captured by raw features alone
-TC-3: run_benchmark.py will create outputs/benchmark_report.md containing results for both datasets
+TC-1: GET /trace will return a JSON object containing both a "trace" array and a "status" field
+TC-2: the UI polls GET /trace every 3 seconds while status is "running" and appends new iteration cards without clearing previous ones — manual verification
+TC-3: an IterationRecord with decision="discarded" will render with the word "discarded" visible in the UI card
 
 ### CC Challenge Output
-- run_benchmark.py _run_dataset() untested: rejected — requires live LLM, belongs in e2e
-- _has_keyword logic: accepted — novel logic, completely uncovered, added TestHasKeyword
-- Dataset determinism: accepted — benchmarks meaningless without it, added TestGenerateSyntheticDeterminism
-- Churn rate reasonable: accepted — degenerate target invalidates all benchmarks, added TestChurnRate
-- Column dtypes: rejected — LightGBM handles gracefully, too brittle
-- benchmark_report.md content: accepted — silent failure mode, added TestBenchmarkReportFile
+- "status" value correctness in /trace: accepted — present-key gives false confidence, added 3 tests
+- Status field when agent is mid-run: accepted — running path never exercised, added test
+- appendNewCards idempotency: accepted — duplicate card regression, added test
+- Cross-endpoint consistency: rejected — lock used in both paths, integration-level
+- buildCard CSS class: rejected — too brittle, HTML evolves
+- Concurrent /run calls: rejected — race condition testing too complex for hackathon scope
 
 
 ### Code Review
-Invariant touched: INV-09 (baseline always first)
-- Baseline metric recorded before agent loop starts — confirmed in run_benchmark.py
-- Benchmark report shows baseline alongside final metric — confirmed in benchmark_report.md format
+Invariant touched: INV-05 (trace completeness reflected in view)
+- Poll interval confirmed at 3000ms in index.html
+- renderedIterations counter appends cards — no clearing confirmed
+- Polling stops on status="complete" — confirmed
+- All trace entries rendered — no filtering or skipping in UI
+- Decision colour coding: kept=green, discarded=amber, error=red — confirmed
 
 ### Scope Decisions
 
@@ -149,34 +152,33 @@ Invariant touched: INV-09 (baseline always first)
 
 **3. Send this to Claude Code:**
 ```
-I am starting Session 3 (Guardrails + Evaluation) of this project.
+I am starting Session 4 (MCP Exposure + UI) of this project.
 
 Re-read Claude.md from the .claude/ directory. Claude.md version 
 is v1.2. All invariants and scope boundaries apply without exception.
 
-Session goal: leakage detection is live and blocks leaking features, 
-FeatureCandidate Pydantic validation enforces INV-07, agent runs 
-end-to-end on synthetic dataset and achieves measurable AUC lift 
-over baseline.
+Session goal: all four agent tools accessible as MCP servers via 
+fastmcp. FastAPI serves a single-page HTML UI where a user can 
+upload a CSV, name the target column, run the agent, and watch 
+iterations stream in real time.
 
 I will give you one task at a time. Wait for my instruction before 
 starting each task. Do not build ahead. Do not create files not 
 listed in the task prompt.
 
-Ready to begin Task 3.1.
+Ready to begin Task 4.1.
 ```
 
 ---
 
-**4. Write your prediction statement for Task 3.1 before pasting the CC prompt:**
+**4. Write your prediction statement for Task 4.1 before pasting the CC prompt:**
 ```
 ### Prediction Statement
-TC-1: a feature series identical to the target will return 
-      is_leaking=True with reason set describing the correlation check
-TC-2: a feature whose name contains the target column name as a 
-      substring will return is_leaking=True
-TC-3: a genuinely random feature uncorrelated with the target 
-      will return is_leaking=False with reason=None
-TC-4: when the loop encounters a leaking feature it will write 
-      an IterationRecord with decision="discarded" and continue 
-      to the next iteration without calling EvaluateTool
+TC-1: profile_dataset called directly with a valid CSV path and 
+      target column will return a dict containing row_count key
+TC-2: execute_feature_code with valid pandas transformation code 
+      will return a dict with success=True
+TC-3: evaluate_features on a small DataFrame will return a dict 
+      containing an auc key with a float value
+TC-4: get_shap_values on a valid EvaluationResult JSON will return 
+      a dict containing ranked_features key as a list

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feature Engineering Agent</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 1.5rem; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input[type="text"], input[type="number"] { width: 100%; padding: 6px; box-sizing: border-box; }
+    input[type="file"] { margin-top: 4px; }
+    button { margin-top: 16px; padding: 8px 20px; font-size: 1rem; cursor: pointer; }
+    #status-div { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; display: none; }
+    #results-div { margin-top: 24px; display: none; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #e8e8e8; }
+    #reasoning-section { margin-top: 28px; display: none; }
+    #reasoning-section h2 { font-size: 1.2rem; margin-bottom: 8px; }
+    .iter-card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+    .iter-card .iter-title { font-weight: bold; margin-bottom: 4px; }
+    .iter-card .iter-row { margin: 2px 0; font-size: 0.9rem; }
+    .decision-kept   { color: #2a7a2a; font-weight: bold; }
+    .decision-discarded { color: #b85c00; font-weight: bold; }
+    .decision-error  { color: #b00020; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Feature Engineering Agent</h1>
+
+  <form id="run-form">
+    <label for="file">CSV Dataset</label>
+    <input type="file" id="file" name="file" accept=".csv" required />
+
+    <label for="target_col">Target Column Name</label>
+    <input type="text" id="target_col" name="target_col" placeholder="e.g. churn" required />
+
+    <label for="max_iter">Max Iterations</label>
+    <input type="number" id="max_iter" name="max_iter" value="5" min="1" max="10" />
+
+    <button type="submit" id="run-btn">Run Agent</button>
+  </form>
+
+  <div id="status-div">
+    <strong>Status:</strong> <span id="status-text">idle</span> &nbsp;|&nbsp;
+    <strong>Iteration:</strong> <span id="iteration-text">0</span>
+  </div>
+
+  <!-- Live reasoning log — shown while running and after completion -->
+  <div id="reasoning-section">
+    <h2>Live Agent Reasoning</h2>
+    <div id="reasoning-cards"></div>
+  </div>
+
+  <div id="results-div">
+    <h2>Results</h2>
+    <p>
+      <strong>Baseline AUC:</strong> <span id="baseline-auc">—</span> &nbsp;&nbsp;
+      <strong>Final AUC:</strong> <span id="final-auc">—</span>
+    </p>
+    <h3>Kept Features</h3>
+    <table id="features-table">
+      <thead>
+        <tr><th>Name</th><th>Hypothesis</th><th>SHAP Value</th></tr>
+      </thead>
+      <tbody id="features-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let statusPollInterval = null;
+    let tracePollInterval = null;
+    let renderedIterations = 0;   // tracks how many cards have been appended
+
+    document.getElementById('run-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+
+      const fileInput = document.getElementById('file');
+      const targetCol = document.getElementById('target_col').value;
+      const maxIter = document.getElementById('max_iter').value;
+
+      if (!fileInput.files[0]) return;
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+      formData.append('target_col', targetCol);
+      formData.append('max_iter', maxIter);
+
+      // Reset UI
+      document.getElementById('run-btn').disabled = true;
+      document.getElementById('results-div').style.display = 'none';
+      document.getElementById('reasoning-cards').innerHTML = '';
+      document.getElementById('reasoning-section').style.display = 'none';
+      document.getElementById('status-div').style.display = 'block';
+      document.getElementById('status-text').textContent = 'starting…';
+      document.getElementById('iteration-text').textContent = '0';
+      renderedIterations = 0;
+
+      try {
+        await fetch('/run', { method: 'POST', body: formData });
+      } catch (err) {
+        document.getElementById('status-text').textContent = 'error: ' + err.message;
+        document.getElementById('run-btn').disabled = false;
+        return;
+      }
+
+      document.getElementById('reasoning-section').style.display = 'block';
+
+      // Poll /status every 2 s to update the status bar
+      statusPollInterval = setInterval(pollStatus, 2000);
+      // Poll /trace every 3 s to append new iteration cards
+      tracePollInterval = setInterval(pollTrace, 3000);
+    });
+
+    async function pollStatus() {
+      try {
+        const resp = await fetch('/status');
+        const data = await resp.json();
+        document.getElementById('status-text').textContent = data.status;
+        document.getElementById('iteration-text').textContent = data.iteration;
+
+        if (data.status === 'complete') {
+          clearInterval(statusPollInterval);
+          statusPollInterval = null;
+          clearInterval(tracePollInterval);
+          tracePollInterval = null;
+          document.getElementById('run-btn').disabled = false;
+          // Final trace fetch for summary and any last cards
+          await pollTrace();
+          await renderSummary();
+        }
+      } catch (err) {
+        console.error('Status poll error:', err);
+      }
+    }
+
+    async function pollTrace() {
+      try {
+        const resp = await fetch('/trace');
+        const data = await resp.json();
+        appendNewCards(data.trace || []);
+      } catch (err) {
+        console.error('Trace poll error:', err);
+      }
+    }
+
+    // Appends cards only for iteration records not yet rendered
+    function appendNewCards(trace) {
+      const iterations = trace.filter(e => e.status !== 'baseline');
+      const container = document.getElementById('reasoning-cards');
+      for (let i = renderedIterations; i < iterations.length; i++) {
+        container.appendChild(buildCard(iterations[i]));
+      }
+      renderedIterations = iterations.length;
+    }
+
+    function buildCard(rec) {
+      const delta = rec.auc_delta >= 0
+        ? '+' + rec.auc_delta.toFixed(4)
+        : rec.auc_delta.toFixed(4);
+      const decisionClass = 'decision-' + rec.decision;
+
+      const card = document.createElement('div');
+      card.className = 'iter-card';
+      card.innerHTML =
+        '<div class="iter-title">Iteration ' + rec.iteration + '</div>' +
+        '<div class="iter-row"><strong>Hypothesis:</strong> ' + escHtml(rec.hypothesis) + '</div>' +
+        '<div class="iter-row"><strong>Feature:</strong> ' + escHtml(rec.feature_name) + '</div>' +
+        '<div class="iter-row"><strong>AUC:</strong> ' +
+          rec.auc_before.toFixed(4) + ' → ' + rec.auc_after.toFixed(4) +
+          ' (delta: ' + delta + ')</div>' +
+        '<div class="iter-row"><strong>Decision:</strong> ' +
+          '<span class="' + decisionClass + '">' + escHtml(rec.decision) + '</span></div>';
+      return card;
+    }
+
+    async function renderSummary() {
+      try {
+        const resp = await fetch('/trace');
+        const data = await resp.json();
+        renderFinalResults(data.trace || []);
+      } catch (err) {
+        console.error('Summary fetch error:', err);
+      }
+    }
+
+    function renderFinalResults(trace) {
+      const resultsDiv = document.getElementById('results-div');
+      if (!trace || trace.length === 0) {
+        resultsDiv.style.display = 'block';
+        document.getElementById('baseline-auc').textContent = '—';
+        document.getElementById('final-auc').textContent = '—';
+        return;
+      }
+
+      const baseline = trace.find(e => e.status === 'baseline');
+      const iterations = trace.filter(e => e.status !== 'baseline');
+      const kept = iterations.filter(e => e.decision === 'kept');
+
+      const baselineAuc = baseline ? baseline.auc.toFixed(4) : '—';
+      const lastKept = kept[kept.length - 1];
+      const finalAuc = lastKept
+        ? lastKept.auc_after.toFixed(4)
+        : (baseline ? baseline.auc.toFixed(4) : '—');
+
+      document.getElementById('baseline-auc').textContent = baselineAuc;
+      document.getElementById('final-auc').textContent = finalAuc;
+
+      const tbody = document.getElementById('features-body');
+      tbody.innerHTML = '';
+      kept.forEach(function (rec) {
+        const shap = rec.shap_summary && rec.shap_summary.ranked_features
+          ? (rec.shap_summary.ranked_features.find(f => f.feature_name === rec.feature_name) || {}).mean_abs_shap
+          : null;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escHtml(rec.feature_name) + '</td>' +
+          '<td>' + escHtml(rec.hypothesis) + '</td>' +
+          '<td>' + (shap !== undefined && shap !== null ? shap.toFixed(4) : '—') + '</td>';
+        tbody.appendChild(tr);
+      });
+
+      resultsDiv.style.display = 'block';
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
