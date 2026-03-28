@@ -19,7 +19,10 @@ Source: EXECUTION_PLAN.md Session 4
 | TC-4 | get_shap_values on eval result | Returns dict with ranked_features key | PASS |
 
 ### Prediction Statement
-
+TC-1: profile_dataset called directly with a valid CSV path and target column will return a dict containing row_count key
+TC-2: execute_feature_code with valid pandas transformation code will return a dict with success=True
+TC-3: evaluate_features on a small DataFrame will return a dict containing an auc key with a float value
+TC-4: get_shap_values on a valid EvaluationResult JSON will return a dict containing ranked_features key as a list
 
 ### CC Challenge Output
 - get_shap_values invalid JSON: accepted — unhandled exception crashes server, added try/except and test

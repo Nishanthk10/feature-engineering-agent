@@ -11,7 +11,7 @@
 
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
-| 4.1 | MCP server | | |
+| 4.1 | MCP server | Completed | 00f74ac |
 | 4.2 | FastAPI backend | | |
 | 4.3 | Streaming iteration updates | | |
 
@@ -21,7 +21,9 @@
 
 | Task | Decision made | Rationale |
 |------|---------------|-----------|
-|      |               |           |
+| 4.1 | Accepted 3 CC Challenge cases: invalid JSON handling, sandbox security at MCP layer, FastMCP registration | Security and reliability coverage |
+| 4.1 | Rejected 3 CC Challenge cases: path propagation, row count, feature_names | Already covered in underlying tool tests |
+
 
 ---
 
