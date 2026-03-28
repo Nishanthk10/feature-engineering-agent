@@ -15,3 +15,51 @@ class DatasetProfile(BaseModel):
     feature_cols: list[str]
     missing_rate: dict[str, float]
     dtypes: dict[str, str]
+
+
+class FeatureShapEntry(BaseModel):
+    feature_name: str
+    mean_abs_shap: float
+    rank: int
+
+
+class ShapSummary(BaseModel):
+    ranked_features: list[FeatureShapEntry]
+    top_3_summary: str
+
+
+class ReasoningOutput(BaseModel):
+    hypothesis: str
+    feature_name: str
+    transformation_code: str
+    decision_rationale: str
+
+
+class IterationRecord(BaseModel):
+    iteration: int
+    hypothesis: str
+    feature_name: str
+    transformation_code: str
+    auc_before: float
+    auc_after: float
+    auc_delta: float
+    shap_summary: ShapSummary
+    decision: str   # "kept" | "discarded" | "error"
+    error_message: str | None
+    status: str     # "completed" | "failed"
+
+
+class AgentTrace(BaseModel):
+    baseline_auc: float
+    iterations: list["IterationRecord"]
+    final_feature_set: list[str]
+    final_auc: float
+
+
+class ExecuteResult(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
+
+    success: bool
+    new_columns: list[str]
+    error_message: str | None
+    output_df: object | None  # pd.DataFrame | None

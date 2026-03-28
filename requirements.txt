@@ -13,3 +13,6 @@ pytest
 python-multipart
 mlflow
 python-dotenv
+google-genai
+openai
+huggingface_hub

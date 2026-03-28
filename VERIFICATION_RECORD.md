@@ -1,84 +1,44 @@
 # VERIFICATION_RECORD.md
 
-**Session:** S1 — Scaffold + Data Foundation
+**Session:** S2 — Agent Core + Tools
 **Date:** 2026-03-22
 **Engineer:** Nishanth
 
 ---
 
-## Task 1.1 — Repository scaffold
+## Task 2.1 — Code execution sandbox
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 1
+Source: EXECUTION_PLAN.md Session 2
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | pip install -r requirements.txt runs | Zero errors, all packages install | PASS |
-| TC-2 | python run_agent.py runs | Prints "Agent ready", exits 0 | PASS |
-| TC-3 | pytest tests/test_scaffold.py | 1 passed | PASS |
+| TC-1 | Valid transformation code | success=True, new column in output_df | PASS |
+| TC-2 | Syntax error in code | success=False, error_message set | PASS |
+| TC-3 | Disallowed import (import os) | success=False | PASS |
+| TC-4 | Code runs for 35 seconds | success=False, returns within 35s | PASS |
 
 ### Prediction Statement
-TC-1: pip install will complete with exit code 0, no error lines
-TC-2: python run_agent.py will print "Agent ready" and exit cleanly
-TC-3: pytest will output "1 passed" with no failures or errors
+TC-1: valid pandas code adding a new column will return success=True with the new column in output_df
+TC-2: code with a syntax error will return success=False with error_message containing the exception text
+TC-3: code containing "import os" will return success=False — blocked by the import whitelist
+TC-4: code with time.sleep(35) will return success=False within 35 seconds — killed by the 30 second timeout
 
 ### CC Challenge Output
-- agent/loop.py not imported: rejected — stub tested in Session 2
-- tools/ stubs not imported: rejected — tested in later tasks  
-- tools/schemas.py not imported: rejected — empty stub
-- requirements.txt not validated: rejected — proven by successful install
-- Package imports not verified: accepted — added test for AgentLoop import
-- Directory existence not asserted: accepted — added test for data/ and outputs/
-- .env.example key not verified: accepted — added test for ANTHROPIC_API_KEY string
+- No new columns added (new_columns=[]): accepted — valid edge case, added test
+- Multiple new columns added: accepted — legitimate path, added test
+- output_df row count matches input: accepted — data integrity check, added test
+- output_df preserves original columns: accepted — data integrity check, added test
+- from X import Y disallowed form: accepted — real security gap, whitelist must block both forms, added test
+- Runtime exception without import (1/0): rejected — same code path as existing KeyError test
+- sandbox_runner.py in isolation: rejected — subprocess design makes direct import impractical, ExecuteTool coverage sufficient
+- Timeout path in fast suite: rejected — documented as known gap in deviations
 
 ### Code Review
-No invariants touched — scaffold only.
-
-### Scope Decisions
-mlflow and python-dotenv added to requirements.txt — required by Claude.md 
-Fixed Stack, flagged by CC, accepted.
-
-### Verification Verdict
-[ Verified ] All planned cases passed
-[ Verified ] CC challenge reviewed
-[ Verified ] Code review complete (if invariant-touching)
-[ Verified ] Scope decisions documented
-
-**Status:** Verified
-
----
-
-## Task 1.2 — Dataset loader and validator
-
-### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 1
-
-| Case | Scenario | Expected | Result |
-|------|----------|----------|--------|
-| TC-1 | Valid CSV, valid target | Returns two independent DataFrames | PASS |
-| TC-2 | Target column missing | ValueError raised | PASS |
-| TC-3 | File not found | ValueError raised | PASS |
-| TC-4 | Mutate working_df, check original_df | Original unchanged | PASS |
-
-### Prediction Statement
-TC-1: load() with valid CSV and valid target column will return 
-      two DataFrames that are independent copies
-TC-2: load() with a missing target column will raise ValueError
-TC-3: load() with a non-existent file path will raise ValueError
-TC-4: mutating the working_df will not change the original_df — 
-      the two objects are fully independent in memory
-
-### CC Challenge Output
-- File size > 500MB: accepted — stated requirement, added test
-- 100 rows boundary: accepted — boundary test on hard limit
-- Source file unmodified: rejected — no write operations in file, confirmed by code review
-- Non-CSV/malformed file: rejected — out of scope for this task
-- Return values not same object: accepted — directly tests INV-01 independence
-
-### Code Review
-Invariant touched: INV-01 (dataset immutability)
-- Confirm deepcopy used on both return values
-- Confirm no write operation on source path
+Invariant touched: INV-03 (code execution isolation)
+- Confirm no exec() in main process
+- Confirm subprocess timeout enforced at 30 seconds
+- Confirm import whitelist enforced in sandbox_runner.py
 
 ### Scope Decisions
 
@@ -93,37 +53,36 @@ Invariant touched: INV-01 (dataset immutability)
 
 ---
 
-## Task 1.3 — Baseline evaluator
+## Task 2.2 — SHAP tool
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 1
+Source: EXECUTION_PLAN.md Session 2
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Clean synthetic binary dataset | EvaluationResult returned, AUC 0.5–1.0 | PASS |
-| TC-2 | Run twice with same inputs | AUC identical both runs | PASS |
-| TC-3 | SHAP values dict | One key per feature, values are floats | PASS |
-| TC-4 | Target column in DataFrame | Dropped from features, not in shap_values | PASS |
+| TC-1 | EvaluationResult with 5 features | ranked_features sorted by shap descending | PASS |
+| TC-2 | rank field | 1-indexed, matches sort order | PASS |
+| TC-3 | top_3_summary | Contains top 3 feature names as strings | PASS |
+| TC-4 | Single feature input | One entry, rank=1 | PASS |
 
 ### Prediction Statement
-TC-1: EvaluateTool on a clean synthetic binary dataset will return an EvaluationResult with AUC between 0.5 and 1.0
-TC-2: Running evaluate() twice on identical inputs will return exactly the same AUC value both times
-TC-3: shap_values dict will have one key per feature column, all values will be floats
-TC-4: The target column will not appear as a key in shap_values
+TC-1: EvaluationResult with 5 features will return ranked_features sorted descending by mean_abs_shap — highest shap first
+TC-2: rank field will be 1-indexed — first entry rank=1, second rank=2, matching sort order exactly
+TC-3: top_3_summary string will contain the names of the top 3 features by shap value as substrings
+TC-4: EvaluationResult with single feature will return ranked_features with one entry, rank=1
 
 ### CC Challenge Output
-- f1 range: accepted — added range assertion
-- feature_names excludes target: accepted — explicit absence check added
-- SHAP sample path: rejected — code inspection confirms branch exists, 
-  50k dataset too slow for test suite
-- Non-binary target: rejected — out of scope, binary only per spec
-- Single-feature DataFrame: accepted — edge case added
-- shap_values non-negative: accepted — construction guarantee asserted
+- top_3_summary with < 3 features: accepted — edge case, should not crash, added test
+- top_3_summary decimal formatting: rejected — cosmetic, too brittle
+- Tied SHAP values: accepted — should not raise error, added test
+- All SHAP values zero: accepted — ranks still assigned, added test
+- ranked_features length equals feature count: accepted — verifies nothing truncated
+- feature_name matches dict key: rejected — direct assignment, covered by TC-1
 
 ### Code Review
-Invariants touched: INV-06 (evaluation determinism), INV-09 (baseline first)
-- Confirm random_state=42 on LGBMClassifier
-- Confirm random_state=42 on train_test_split
+INV-07 confirmed:
+- ranked_features sorted descending by mean_abs_shap — confirmed in shap_tool.py
+- rank is 1-indexed — confirmed, first entry rank=1
 
 ### Scope Decisions
 
@@ -138,40 +97,92 @@ Invariants touched: INV-06 (evaluation determinism), INV-09 (baseline first)
 
 ---
 
-## Task 1.4 — Dataset profiler and CLI wiring
+## Task 2.3 — LLM reasoning layer
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 1
+Source: EXECUTION_PLAN.md Session 2
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | Run with valid dataset + target | Prints "Baseline AUC: X", exits 0 | PASS |
-| TC-2 | trace.json written | Contains iteration 0, status: baseline, auc value | PASS |
-| TC-3 | --max-iter 0 flag | Stops after baseline, no iteration 1 | PASS |
-| TC-4 | Profile missing_rate | Correct fractions for known-missing synthetic data | PASS |
+| TC-1 | Valid JSON from mocked API | ReasoningOutput with all fields | PASS |
+| TC-2 | Malformed JSON from API | ValueError raised | PASS |
+| TC-3 | transformation_code field | Non-empty string | PASS |
+| TC-4 | History > 3 iterations | Only last 3 sent to API | PASS |
 
 ### Prediction Statement
-TC-1: run_agent.py with valid dataset and target will print "Baseline AUC: X" where X is a float, and exit 0
-TC-2: outputs/trace.json will exist after the run and contain a list with one entry: iteration 0, status baseline, with an auc value
-TC-3: passing --max-iter 0 will stop after baseline with no iteration 1 entry in trace.json
-TC-4: profile missing_rate will return correct fractions for columns with known missing values in a synthetic dataset
+TC-1: valid JSON response from mocked API will parse into ReasoningOutput with all four fields populated
+TC-2: malformed JSON from mocked API will raise ValueError containing the raw response text
+TC-3: transformation_code field will be a non-empty string in a valid response
+TC-4: when iteration history has more than 3 entries, only the last 3 will appear in the mock call arguments
 
 ### CC Challenge Output
-- feature_cols ordering: rejected — not a stated requirement
-- target_col absent from missing_rate: accepted — added assertion
-- dtypes value strings: rejected — pandas-internal, too brittle
-- zero missing values boundary: accepted — added 0.0 case
-- --max-iter parsed: accepted — added test
-- trace.json structure: accepted — added field validation
-- .tmp not left behind: accepted — tests INV-05 atomic write
-- outputs/ created if missing: accepted — real edge case
-- exit code 0: accepted — added process check
-- DatasetLoader ValueError propagation: rejected — covered in Task 1.2
+- User prompt contains profile fields: rejected — prompt content too brittle
+- User prompt includes top_3_summary: rejected — same reason
+- Only last 3 records sent (5 record test): accepted — TC-4 not properly covered, added test
+- current_features in prompt: rejected — prompt content too brittle
+- Model is claude-sonnet-4-20250514: accepted — Fixed Stack enforcement verified
+- System parameter content: rejected — prompt internals too brittle
+- Empty iteration_history handled: accepted — real scenario on iteration 1, added test
+- Missing required key raises ValidationError: accepted — distinct from JSONDecodeError, added test
+- Extra keys in JSON: rejected — Pydantic v2 library guarantee
+
 
 ### Code Review
-Invariants touched: INV-05 (trace completeness), INV-09 (baseline first)
-- Confirm baseline entry written before any iteration starts
-- Confirm atomic write (tmp file → rename) used for trace.json
+INV-07 confirmed:
+- hypothesis field required in ReasoningOutput — Pydantic validation enforces non-empty, confirmed in schemas.py
+- System prompt instructs LLM to return hypothesis before code — confirmed in llm_reasoner.py system prompt text
+
+### Scope Decisions
+IterationRecord expanded from 3 fields to 11 in tools/schemas.py — required to avoid conflict with Task 2.4. test_llm_reasoner.py fixture updated to match. Option 1 chosen over optional fields to preserve INV-07 Pydantic enforcement.
+
+### Verification Verdict
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
+
+**Status:** Verified
+
+---
+
+## Task 2.4 — Agent loop wiring
+
+### Test Cases Applied
+Source: EXECUTION_PLAN.md Session 2
+
+| Case | Scenario | Expected | Result |
+|------|----------|----------|--------|
+| TC-1 | 2 iterations with mocked tools | trace.json has 3 entries (baseline + 2) | PASS |
+| TC-2 | 2 consecutive delta < 0.001 | Early stop, loop exits | PASS |
+| TC-3 | ExecuteTool returns failure | IterationRecord written with status="failed" | PASS |
+| TC-4 | Baseline written first | trace.json entry 0 exists before iteration 1 starts | PASS |
+
+### Prediction Statement
+TC-1: running 2 iterations with all tools mocked will produce trace.json with exactly 3 entries — baseline plus 2 iterations
+TC-2: if 2 consecutive iterations both have auc_delta < 0.001 the loop will exit before reaching max_iter
+TC-3: if ExecuteTool returns success=False the IterationRecord will be written with status="failed" and loop continues 
+      to next iteration
+TC-4: trace.json will contain a baseline entry as the first entry before any iteration entry appears
+
+### CC Challenge Output
+- decision="kept" updates working_df: accepted — core loop mechanic, added test
+- decision="discarded" does not update working_df: accepted — converse, added test
+- final_feature_set reflects kept features: accepted — AgentTrace output correctness
+- max_iter=50 clamped to 10: accepted — INV-04 must be exercised
+- sequential iteration numbering: accepted — trace data integrity
+- tmp file absent after run: accepted — INV-05 atomic write completion
+- final_auc equals last kept AUC: rejected — covered by kept/discarded tests
+- auc_before matches previous auc_after: rejected — implementation internals
+- final summary line printed: rejected — cosmetic output
+- CLI max_iter forwarding: rejected — covered in Task 1.4 e2e tests
+
+### Code Review
+Invariants touched: INV-04, INV-05, INV-09
+- INV-04: hard cap effective_max = min(max_iter, 10) confirmed on line 68
+- INV-04: early stop on 2 consecutive deltas < 0.001 confirmed
+- INV-05: atomic write uses Path.replace() confirmed
+- INV-05: baseline entry written before loop starts confirmed
+- INV-09: EvaluateTool called on raw features before any iteration confirmed
 
 ### Scope Decisions
 
