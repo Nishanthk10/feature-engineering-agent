@@ -5,6 +5,8 @@ from agent.loop import AgentLoop
 
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Feature engineering agent")
     parser.add_argument("--dataset", required=True, help="Path to input CSV")
     parser.add_argument("--target", required=True, help="Target column name")

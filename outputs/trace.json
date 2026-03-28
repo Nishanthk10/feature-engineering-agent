@@ -11,5 +11,104 @@
       "num_products",
       "years_customer"
     ]
+  },
+  {
+    "iteration": 1,
+    "hypothesis": "The ratio of liquid assets (balance) to annual earnings (income) serves as a proxy for financial stability or debt-service capacity. This interaction often captures latent patterns in customer behavior that linear combinations of the raw features miss.",
+    "feature_name": "balance_to_income_ratio",
+    "transformation_code": "df['balance_to_income_ratio'] = df['balance'] / (df['income'] + 1)",
+    "auc_before": 0.9649122807017543,
+    "auc_after": 0.9699248120300752,
+    "auc_delta": 0.005012531328320913,
+    "shap_summary": {
+      "ranked_features": [
+        {
+          "feature_name": "balance",
+          "mean_abs_shap": 1.2978061804580563,
+          "rank": 1
+        },
+        {
+          "feature_name": "income",
+          "mean_abs_shap": 1.2053491110774435,
+          "rank": 2
+        },
+        {
+          "feature_name": "years_customer",
+          "mean_abs_shap": 1.1240303323987566,
+          "rank": 3
+        },
+        {
+          "feature_name": "num_products",
+          "mean_abs_shap": 1.1055367446863993,
+          "rank": 4
+        },
+        {
+          "feature_name": "age",
+          "mean_abs_shap": 0.4555842847933908,
+          "rank": 5
+        },
+        {
+          "feature_name": "balance_to_income_ratio",
+          "mean_abs_shap": 0.23837446099864934,
+          "rank": 6
+        }
+      ],
+      "top_3_summary": "Top features by importance: (1) balance (shap=1.298), (2) income (shap=1.205), (3) years_customer (shap=1.124)"
+    },
+    "decision": "kept",
+    "error_message": null,
+    "status": "completed"
+  },
+  {
+    "iteration": 2,
+    "hypothesis": "Customer tenure (years_customer) relative to the number of products held (num_products) serves as an indicator of product adoption intensity over time. This metric helps distinguish between loyal, multi-product customers and those who may have acquired products rapidly or are under-utilizing their account longevity.",
+    "feature_name": "products_per_year_tenure",
+    "transformation_code": "df['products_per_year_tenure'] = df['num_products'] / (df['years_customer'] + 1)",
+    "auc_before": 0.9699248120300752,
+    "auc_after": 0.9573934837092732,
+    "auc_delta": -0.012531328320801949,
+    "shap_summary": {
+      "ranked_features": [
+        {
+          "feature_name": "balance",
+          "mean_abs_shap": 1.3773540084361167,
+          "rank": 1
+        },
+        {
+          "feature_name": "income",
+          "mean_abs_shap": 1.1941013203075515,
+          "rank": 2
+        },
+        {
+          "feature_name": "num_products",
+          "mean_abs_shap": 1.1428283116722158,
+          "rank": 3
+        },
+        {
+          "feature_name": "years_customer",
+          "mean_abs_shap": 1.0341685539865735,
+          "rank": 4
+        },
+        {
+          "feature_name": "age",
+          "mean_abs_shap": 0.41138035364137887,
+          "rank": 5
+        },
+        {
+          "feature_name": "balance_to_income_ratio",
+          "mean_abs_shap": 0.19416387300724416,
+          "rank": 6
+        },
+        {
+          "feature_name": "products_per_year_tenure",
+          "mean_abs_shap": 0.06592042918172339,
+          "rank": 7
+        }
+      ],
+      "top_3_summary": "Top features by importance: (1) balance (shap=1.377), (2) income (shap=1.194), (3) num_products (shap=1.143)"
+    },
+    "decision": "discarded",
+    "error_message": null,
+    "status": "completed"
   }
 ]

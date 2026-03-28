@@ -13,6 +13,6 @@ pytest
 python-multipart
 mlflow
 python-dotenv
-google-generativeai
+google-genai
 openai
 huggingface_hub

@@ -14,7 +14,7 @@ def _make_genai_mock(response_text: str = "gemini response") -> MagicMock:
     mock_genai = MagicMock()
     mock_response = MagicMock()
     mock_response.text = response_text
-    mock_genai.GenerativeModel.return_value.generate_content.return_value = mock_response
+    mock_genai.Client.return_value.models.generate_content.return_value = mock_response
     return mock_genai
 
 
@@ -41,12 +41,12 @@ def _make_hf_mock(response_text: str = "huggingface response") -> MagicMock:
 
 
 class TestLLMClientProviderRouting:
-    def test_gemini_routes_to_generative_model(self, monkeypatch):
+    def test_gemini_routes_to_client(self, monkeypatch):
         monkeypatch.setenv("LLM_PROVIDER", "gemini")
         mock_genai = _make_genai_mock()
-        with patch.dict(sys.modules, {"google.generativeai": mock_genai}):
+        with patch.dict(sys.modules, {"google.genai": mock_genai}):
             result = LLMClient().complete("sys", "user")
-        mock_genai.GenerativeModel.assert_called_once_with("gemini-2.0-flash")
+        mock_genai.Client.assert_called_once()
         assert result == "gemini response"
 
     def test_openai_routes_to_openai_client(self, monkeypatch):
@@ -81,7 +81,7 @@ class TestLLMClientProviderRouting:
     def test_default_provider_is_gemini_when_env_not_set(self, monkeypatch):
         monkeypatch.delenv("LLM_PROVIDER", raising=False)
         mock_genai = _make_genai_mock()
-        with patch.dict(sys.modules, {"google.generativeai": mock_genai}):
+        with patch.dict(sys.modules, {"google.genai": mock_genai}):
             result = LLMClient().complete("sys", "user")
-        mock_genai.GenerativeModel.assert_called_once_with("gemini-2.0-flash")
+        mock_genai.Client.assert_called_once()
         assert result == "gemini response"

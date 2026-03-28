@@ -67,10 +67,12 @@ class LLMClient:
         provider = os.environ.get("LLM_PROVIDER", "gemini")
 
         if provider == "gemini":
-            import google.generativeai as genai
-            genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-            model = genai.GenerativeModel("gemini-2.0-flash")
-            response = model.generate_content(system + "\n\n" + user)
+            from google import genai
+            client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite-preview",
+                contents=system + "\n\n" + user,
+            )
             return response.text
 
         elif provider == "openai":
