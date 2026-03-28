@@ -61,21 +61,34 @@ Source: EXECUTION_PLAN.md Session 3
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | FeatureCandidate with empty hypothesis | ValueError raised | |
-| TC-2 | Mix of kept/discarded in trace | only kept in FormattedOutput.kept_features | |
-| TC-3 | auc_lift calculation | Equals final_auc - baseline_auc | |
-| TC-4 | final_features.csv written | Exists, has one row per kept feature | |
+| TC-1 | FeatureCandidate with empty hypothesis | ValueError raised | PASS |
+| TC-2 | Mix of kept/discarded in trace | only kept in FormattedOutput.kept_features | PASS |
+| TC-3 | auc_lift calculation | Equals final_auc - baseline_auc | PASS |
+| TC-4 | final_features.csv written | Exists, has one row per kept feature | PASS |
 
 ### Prediction Statement
-
+TC-1: creating a FeatureCandidate with an empty hypothesis string will raise ValueError from Pydantic validation
+TC-2: FormattedOutput.kept_features will contain only entries with decision="kept" — discarded and error entries excluded
+TC-3: auc_lift will equal final_auc minus baseline_auc exactly
+TC-4: outputs/final_features.csv will exist after a run and contain one row per kept feature
 
 ### CC Challenge Output
+- SHAP lookup fallback: accepted — silent failure mode, added test
+- SHAP selected from multi-entry summary: accepted — real bug risk, added test
+- outputs/final_features.csv: accepted — silent failure mode, added tests
+- report_text lift value: rejected — cosmetic, not an invariant
+- report_text numbered list structure: rejected — too brittle
+- K features kept count: rejected — covered by kept-only filtering test
 
 
 ### Code Review
 Invariant touched: INV-07 (feature candidate schema)
-- Confirm Pydantic validators reject empty strings on name, transformation_code, hypothesis
-- Confirm final output render rejects any candidate not passing validation
+- @field_validator on name — confirmed in schemas.py
+- @field_validator on transformation_code — confirmed in schemas.py
+- @field_validator on hypothesis — confirmed in schemas.py
+- Empty string raises ValueError — confirmed
+- Whitespace-only string raises ValueError — confirmed
+- Final output render only accepts kept features — confirmed in output_formatter.py
 
 ### Scope Decisions
 

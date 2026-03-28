@@ -1,7 +1,11 @@
 import argparse
+import csv
+import pathlib
 import sys
 
 from agent.loop import AgentLoop
+from agent.output_formatter import OutputFormatter
+from tools.profile import ProfileTool
 
 
 def main():
@@ -19,8 +23,32 @@ def main():
         max_iter=args.max_iter,
     )
 
-    lift = trace.final_auc - trace.baseline_auc
-    print(f"Final AUC: {trace.final_auc:.4f} (baseline: {trace.baseline_auc:.4f}, lift: {lift:.4f})")
+    import pandas as pd
+    raw_df = pd.read_csv(args.dataset)
+    profile = ProfileTool().profile(raw_df, args.target)
+    formatted = OutputFormatter().format(trace, profile)
+
+    print(formatted.report_text)
+
+    outputs_dir = pathlib.Path("outputs")
+    outputs_dir.mkdir(exist_ok=True)
+    csv_path = outputs_dir / "final_features.csv"
+    with csv_path.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=["name", "hypothesis", "mean_abs_shap", "auc_delta", "decision", "transformation_code"],
+        )
+        writer.writeheader()
+        for feat in formatted.kept_features:
+            writer.writerow({
+                "name": feat.name,
+                "hypothesis": feat.hypothesis,
+                "mean_abs_shap": feat.mean_abs_shap,
+                "auc_delta": feat.auc_delta,
+                "decision": feat.decision,
+                "transformation_code": feat.transformation_code,
+            })
+
     sys.exit(0)
 
 
