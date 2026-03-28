@@ -2,268 +2,184 @@
   {
     "iteration": 0,
     "status": "baseline",
-    "auc": 0.9649122807017543,
-    "f1": 0.8747642991829039,
+    "auc": 0.6145454545454545,
+    "f1": 0.58,
     "features_used": [
       "age",
       "income",
-      "balance",
+      "account_balance",
+      "city_code",
       "num_products",
-      "years_customer"
+      "years_as_customer",
+      "last_contact_days",
+      "num_contacts",
+      "prev_outcome",
+      "marital_status_code",
+      "education_code",
+      "job_code"
     ]
   },
   {
     "iteration": 1,
-    "hypothesis": "The ratio of liquid assets (balance) to annual income reflects the customer's financial buffer relative to their earnings. This normalized metric captures financial stability or savings behavior more effectively than raw balance or income levels alone.",
+    "hypothesis": "The ratio of account balance to income serves as a proxy for financial liquidity and potential savings behavior, which often differentiates customer segments better than raw values alone.",
     "feature_name": "balance_to_income_ratio",
-    "transformation_code": "df['balance_to_income_ratio'] = df['balance'] / (df['income'] + 1e-6)",
-    "auc_before": 0.9649122807017543,
-    "auc_after": 0.9699248120300752,
-    "auc_delta": 0.005012531328320913,
+    "transformation_code": "df['balance_to_income_ratio'] = df['account_balance'] / (df['income'] + 1e-6)",
+    "auc_before": 0.6145454545454545,
+    "auc_after": 0.6067676767676767,
+    "auc_delta": -0.007777777777777772,
     "shap_summary": {
       "ranked_features": [
         {
-          "feature_name": "balance",
-          "mean_abs_shap": 1.2978061804580563,
+          "feature_name": "balance_to_income_ratio",
+          "mean_abs_shap": 0.2270416659018447,
           "rank": 1
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 1.2053491110774435,
+          "feature_name": "last_contact_days",
+          "mean_abs_shap": 0.19097844372428277,
           "rank": 2
         },
         {
-          "feature_name": "years_customer",
-          "mean_abs_shap": 1.1240303323987566,
+          "feature_name": "job_code",
+          "mean_abs_shap": 0.15237780204058132,
           "rank": 3
         },
         {
-          "feature_name": "num_products",
-          "mean_abs_shap": 1.1055367446863993,
+          "feature_name": "income",
+          "mean_abs_shap": 0.13954024128930537,
           "rank": 4
         },
         {
           "feature_name": "age",
-          "mean_abs_shap": 0.4555842847933908,
+          "mean_abs_shap": 0.1255613970887912,
           "rank": 5
         },
         {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.23837446099864934,
+          "feature_name": "account_balance",
+          "mean_abs_shap": 0.12206284736462117,
           "rank": 6
+        },
+        {
+          "feature_name": "marital_status_code",
+          "mean_abs_shap": 0.08035819301499358,
+          "rank": 7
+        },
+        {
+          "feature_name": "years_as_customer",
+          "mean_abs_shap": 0.04751100479664398,
+          "rank": 8
+        },
+        {
+          "feature_name": "prev_outcome",
+          "mean_abs_shap": 0.04720174540913626,
+          "rank": 9
+        },
+        {
+          "feature_name": "education_code",
+          "mean_abs_shap": 0.04472610928208685,
+          "rank": 10
+        },
+        {
+          "feature_name": "city_code",
+          "mean_abs_shap": 0.036584070471876944,
+          "rank": 11
+        },
+        {
+          "feature_name": "num_contacts",
+          "mean_abs_shap": 0.031069497460098763,
+          "rank": 12
+        },
+        {
+          "feature_name": "num_products",
+          "mean_abs_shap": 0.02028734091433675,
+          "rank": 13
         }
       ],
-      "top_3_summary": "Top features by importance: (1) balance (shap=1.298), (2) income (shap=1.205), (3) years_customer (shap=1.124)"
+      "top_3_summary": "Top features by importance: (1) balance_to_income_ratio (shap=0.227), (2) last_contact_days (shap=0.191), (3) job_code (shap=0.152)"
     },
-    "decision": "kept",
+    "decision": "discarded",
     "error_message": null,
     "status": "completed"
   },
   {
     "iteration": 2,
-    "hypothesis": "Customer tenure (years_customer) relative to the number of products held can identify 'engaged' vs 'dormant' long-term customers. A high number of products per year of tenure suggests a fast-adopting loyal customer, whereas a low ratio for a high-tenure customer suggests a potential attrition risk or limited product penetration.",
-    "feature_name": "products_per_year_tenure",
-    "transformation_code": "df['products_per_year_tenure'] = df['num_products'] / (df['years_customer'] + 1)",
-    "auc_before": 0.9699248120300752,
-    "auc_after": 0.9573934837092732,
-    "auc_delta": -0.012531328320801949,
+    "hypothesis": "The frequency of contact relative to the duration of the relationship provides a measure of 'intensity' or 'churn pressure'. A high number of contacts over a short period may indicate an aggressive retention campaign, while frequent contacts over a very long tenure might indicate a high-touch or high-value client relationship.",
+    "feature_name": "contact_intensity_ratio",
+    "transformation_code": "df['contact_intensity_ratio'] = df['num_contacts'] / (df['years_as_customer'] + 1)",
+    "auc_before": 0.6145454545454545,
+    "auc_after": 0.6255555555555556,
+    "auc_delta": 0.011010101010101137,
     "shap_summary": {
       "ranked_features": [
         {
-          "feature_name": "balance",
-          "mean_abs_shap": 1.3773540084361167,
+          "feature_name": "account_balance",
+          "mean_abs_shap": 0.24650253138002615,
           "rank": 1
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 1.1941013203075515,
+          "feature_name": "last_contact_days",
+          "mean_abs_shap": 0.17190179471790143,
           "rank": 2
         },
         {
-          "feature_name": "num_products",
-          "mean_abs_shap": 1.1428283116722158,
+          "feature_name": "contact_intensity_ratio",
+          "mean_abs_shap": 0.15344134816251664,
           "rank": 3
         },
         {
-          "feature_name": "years_customer",
-          "mean_abs_shap": 1.0341685539865735,
+          "feature_name": "job_code",
+          "mean_abs_shap": 0.14033051215527467,
           "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.41138035364137887,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.19416387300724416,
-          "rank": 6
-        },
-        {
-          "feature_name": "products_per_year_tenure",
-          "mean_abs_shap": 0.06592042918172339,
-          "rank": 7
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) balance (shap=1.377), (2) income (shap=1.194), (3) num_products (shap=1.143)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 3,
-    "hypothesis": "The relationship between age and years_customer reveals what proportion of an individual's adult life (assuming 18 as the start of adulthood) they have spent as a customer. This captures 'customer maturity'\u2014a long-standing customer who joined at a young age represents a different demographic profile and brand loyalty than one who joined later in life.",
-    "feature_name": "customer_age_prop",
-    "transformation_code": "df['customer_age_prop'] = df['years_customer'] / (df['age'] - 18).replace(0, 0.5)",
-    "auc_before": 0.9699248120300752,
-    "auc_after": 0.9598997493734336,
-    "auc_delta": -0.010025062656641603,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "balance",
-          "mean_abs_shap": 1.3330091387620118,
-          "rank": 1
         },
         {
           "feature_name": "income",
-          "mean_abs_shap": 1.2033137687657627,
-          "rank": 2
-        },
-        {
-          "feature_name": "years_customer",
-          "mean_abs_shap": 1.1663757996161492,
-          "rank": 3
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 1.1083020479901409,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.4042911893274456,
+          "mean_abs_shap": 0.12969386942158084,
           "rank": 5
         },
         {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.21479850022952024,
+          "feature_name": "age",
+          "mean_abs_shap": 0.11763944678162674,
           "rank": 6
         },
         {
-          "feature_name": "customer_age_prop",
-          "mean_abs_shap": 0.025897242168603552,
+          "feature_name": "marital_status_code",
+          "mean_abs_shap": 0.0944790108402324,
           "rank": 7
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) balance (shap=1.333), (2) income (shap=1.203), (3) years_customer (shap=1.166)"
-    },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 4,
-    "hypothesis": "The 'age' feature combined with 'income' can act as a proxy for career trajectory or financial maturity. By normalizing income by age, we create an 'income_per_age' feature, which helps distinguish between high earners who are early in their careers and those who are well-established, potentially revealing different risk profiles or purchasing behaviors.",
-    "feature_name": "income_per_age",
-    "transformation_code": "df['income_per_age'] = df['income'] / df['age'].replace(0, 1)",
-    "auc_before": 0.9699248120300752,
-    "auc_after": 0.9573934837092732,
-    "auc_delta": -0.012531328320801949,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "balance",
-          "mean_abs_shap": 1.3635537333704728,
-          "rank": 1
         },
         {
-          "feature_name": "years_customer",
-          "mean_abs_shap": 1.137485737045498,
-          "rank": 2
+          "feature_name": "prev_outcome",
+          "mean_abs_shap": 0.051746509279869554,
+          "rank": 8
+        },
+        {
+          "feature_name": "years_as_customer",
+          "mean_abs_shap": 0.04915349190879275,
+          "rank": 9
+        },
+        {
+          "feature_name": "city_code",
+          "mean_abs_shap": 0.041707370422152806,
+          "rank": 10
+        },
+        {
+          "feature_name": "num_contacts",
+          "mean_abs_shap": 0.0414186613614409,
+          "rank": 11
+        },
+        {
+          "feature_name": "education_code",
+          "mean_abs_shap": 0.040526400191343896,
+          "rank": 12
         },
         {
           "feature_name": "num_products",
-          "mean_abs_shap": 1.0918452640829068,
-          "rank": 3
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 1.0875825136999961,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.36905677025216754,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.21532603309346854,
-          "rank": 6
-        },
-        {
-          "feature_name": "income_per_age",
-          "mean_abs_shap": 0.12483030860266027,
-          "rank": 7
+          "mean_abs_shap": 0.03801368861036641,
+          "rank": 13
         }
       ],
-      "top_3_summary": "Top features by importance: (1) balance (shap=1.364), (2) years_customer (shap=1.137), (3) num_products (shap=1.092)"
+      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.247), (2) last_contact_days (shap=0.172), (3) contact_intensity_ratio (shap=0.153)"
     },
-    "decision": "discarded",
-    "error_message": null,
-    "status": "completed"
-  },
-  {
-    "iteration": 5,
-    "hypothesis": "The interaction between 'balance' and 'num_products' can capture the average liquidity per product. Customers with high total balances distributed across few products often have different behaviors (e.g., savers or high-value accounts) compared to those who have high balances spread thinly across many products, which may indicate portfolio fragmentation or high complexity in their financial management.",
-    "feature_name": "balance_per_product",
-    "transformation_code": "df['balance_per_product'] = df['balance'] / df['num_products'].replace(0, 1)",
-    "auc_before": 0.9699248120300752,
-    "auc_after": 0.9624060150375939,
-    "auc_delta": -0.007518796992481258,
-    "shap_summary": {
-      "ranked_features": [
-        {
-          "feature_name": "balance",
-          "mean_abs_shap": 1.277843700218774,
-          "rank": 1
-        },
-        {
-          "feature_name": "income",
-          "mean_abs_shap": 1.2024709462324863,
-          "rank": 2
-        },
-        {
-          "feature_name": "years_customer",
-          "mean_abs_shap": 1.1191642333559058,
-          "rank": 3
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 1.0506061445395976,
-          "rank": 4
-        },
-        {
-          "feature_name": "age",
-          "mean_abs_shap": 0.4023704486558949,
-          "rank": 5
-        },
-        {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.26962197629829066,
-          "rank": 6
-        },
-        {
-          "feature_name": "balance_per_product",
-          "mean_abs_shap": 0.121824106403285,
-          "rank": 7
-        }
-      ],
-      "top_3_summary": "Top features by importance: (1) balance (shap=1.278), (2) income (shap=1.202), (3) years_customer (shap=1.119)"
-    },
-    "decision": "discarded",
+    "decision": "kept",
     "error_message": null,
     "status": "completed"
   }
