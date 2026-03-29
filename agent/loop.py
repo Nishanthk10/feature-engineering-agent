@@ -1,6 +1,12 @@
 import copy
 import json
 import pathlib
+from datetime import datetime
+
+try:
+    import mlflow
+except Exception:
+    mlflow = None  # type: ignore
 
 from agent.data_loader import DatasetLoader
 from agent.leakage_detector import LeakageDetector
@@ -52,12 +58,33 @@ class AgentLoop:
         except Exception:
             effective_task_type = TaskType.classification
 
+        # MLflow step 1: start parent run
+        try:
+            mlflow.set_tracking_uri("./mlruns")
+            mlflow.set_experiment("feature-agent")
+            parent_run = mlflow.start_run(
+                run_name=f"agent-{dataset_path}-{datetime.now().isoformat()}"
+            )
+        except Exception as e:
+            print(f"[MLflow warning]: {e}")
+            parent_run = None
+
         # 2. Baseline evaluation
         baseline_result = EvaluateTool().evaluate(working_df, target_col, effective_task_type)
         baseline_metric = baseline_result.primary_metric
         current_metric = baseline_metric
         current_shap = ShapTool().format_for_llm(baseline_result)
         profile = ProfileTool().profile(working_df, target_col)
+
+        # MLflow step 2: log baseline
+        try:
+            if parent_run:
+                with mlflow.start_run(run_name="baseline", nested=True):
+                    mlflow.log_metric("baseline_auc_or_rmse", baseline_result.primary_metric)
+                    mlflow.log_param("task_type", effective_task_type.value)
+                    mlflow.log_param("feature_count", len(profile.feature_cols))
+        except Exception as e:
+            print(f"[MLflow warning]: {e}")
 
         # 3. Write baseline entry before iteration 1 (INV-05)
         baseline_entry = {
@@ -115,6 +142,18 @@ class AgentLoop:
                 trace_entries.append(record.model_dump())
                 _write_trace(trace_entries)
                 print(f"Iteration {i}: execute error — {exec_result.error_message}")
+                try:
+                    if parent_run:
+                        with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
+                            mlflow.log_metric("metric_before", record.auc_before)
+                            mlflow.log_metric("metric_after", record.auc_after)
+                            mlflow.log_metric("metric_delta", record.auc_delta)
+                            mlflow.log_param("hypothesis", record.hypothesis[:250])
+                            mlflow.log_param("feature_name", record.feature_name)
+                            mlflow.log_param("decision", record.decision)
+                            mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
+                except Exception as e:
+                    print(f"[MLflow warning]: {e}")
                 small_delta_count += 1
                 if small_delta_count >= EARLY_STOP_CONSECUTIVE:
                     print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
@@ -147,6 +186,18 @@ class AgentLoop:
                 trace_entries.append(record.model_dump())
                 _write_trace(trace_entries)
                 print(f"Iteration {i}: leakage detected — {leak.reason}")
+                try:
+                    if parent_run:
+                        with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
+                            mlflow.log_metric("metric_before", record.auc_before)
+                            mlflow.log_metric("metric_after", record.auc_after)
+                            mlflow.log_metric("metric_delta", record.auc_delta)
+                            mlflow.log_param("hypothesis", record.hypothesis[:250])
+                            mlflow.log_param("feature_name", record.feature_name)
+                            mlflow.log_param("decision", record.decision)
+                            mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
+                except Exception as e:
+                    print(f"[MLflow warning]: {e}")
                 small_delta_count += 1
                 if small_delta_count >= EARLY_STOP_CONSECUTIVE:
                     print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
@@ -197,6 +248,20 @@ class AgentLoop:
 
             print(f"Iteration {i}: metric {metric_after:.4f} (delta {metric_delta:+.4f}) — {decision}")
 
+            # MLflow step 3: log iteration
+            try:
+                if parent_run:
+                    with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
+                        mlflow.log_metric("metric_before", record.auc_before)
+                        mlflow.log_metric("metric_after", record.auc_after)
+                        mlflow.log_metric("metric_delta", record.auc_delta)
+                        mlflow.log_param("hypothesis", record.hypothesis[:250])
+                        mlflow.log_param("feature_name", record.feature_name)
+                        mlflow.log_param("decision", record.decision)
+                        mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
+            except Exception as e:
+                print(f"[MLflow warning]: {e}")
+
             # j. Early stop check
             if abs(metric_delta) < EARLY_STOP_DELTA:
                 small_delta_count += 1
@@ -209,10 +274,22 @@ class AgentLoop:
 
         final_features = [c for c in working_df.columns if c != target_col]
 
-        return AgentTrace(
+        trace = AgentTrace(
             baseline_metric=baseline_metric,
             iterations=iteration_records,
             final_feature_set=final_features,
             final_metric=current_metric,
             task_type=effective_task_type,
         )
+
+        # MLflow step 4: log final metrics and end run
+        try:
+            if parent_run:
+                mlflow.log_metric("final_metric", trace.final_metric)
+                mlflow.log_metric("total_lift", trace.final_metric - trace.baseline_metric)
+                mlflow.log_metric("iterations_run", len(trace.iterations))
+                mlflow.end_run()
+        except Exception as e:
+            print(f"[MLflow warning]: {e}")
+
+        return trace

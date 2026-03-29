@@ -11,7 +11,7 @@
 
 | Task Id | Task Name | Status | Commit |
 |---------|-----------|--------|--------|
-| 5.1 | Regression target support | Completed | |
+| 5.1 | Regression target support | Completed | 062bba5 |
 | 5.2 | MLflow integration | | |
 | 5.3 | Trace viewer endpoint | | |
 | 5.4 | README and architecture diagram | | |
@@ -23,7 +23,9 @@
 
 | Task | Decision made | Rationale |
 |------|---------------|-----------|
-|      |               |           |
+| 5.1 | Accepted 4 CC Challenge cases: regression loop logic, LLM injection, boundary, leakage MI | Novel logic and security coverage |
+| 5.1 | Rejected 2 CC Challenge cases: CLI forwarding, f1 alias | Covered in e2e or backward compat shim |
+
 
 ---
 
