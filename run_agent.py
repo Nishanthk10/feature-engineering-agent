@@ -15,12 +15,19 @@ def main():
     parser.add_argument("--dataset", required=True, help="Path to input CSV")
     parser.add_argument("--target", required=True, help="Target column name")
     parser.add_argument("--max-iter", type=int, default=5, help="Max iterations (default: 5)")
+    parser.add_argument(
+        "--task-type",
+        choices=["classification", "regression"],
+        default=None,
+        help="Task type (default: auto-detect from target column)",
+    )
     args = parser.parse_args()
 
     trace = AgentLoop().run(
         dataset_path=args.dataset,
         target_col=args.target,
         max_iter=args.max_iter,
+        task_type=args.task_type,
     )
 
     import pandas as pd

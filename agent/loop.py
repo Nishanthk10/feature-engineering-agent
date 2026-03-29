@@ -12,6 +12,7 @@ from tools.schemas import (
     AgentTrace,
     IterationRecord,
     ShapSummary,
+    TaskType,
 )
 from tools.shap_tool import ShapTool
 
@@ -37,14 +38,24 @@ class AgentLoop:
         dataset_path: str,
         target_col: str,
         max_iter: int = 5,
+        task_type: str | None = None,
     ) -> AgentTrace:
         # 1. Load dataset
-        _, working_df = DatasetLoader().load(dataset_path, target_col)
+        loader = DatasetLoader()
+        _, working_df = loader.load(dataset_path, target_col)
+        try:
+            detected = loader.detect_task_type(
+                dataset_path, target_col,
+                task_type=TaskType(task_type) if task_type is not None else None,
+            )
+            effective_task_type = detected if isinstance(detected, TaskType) else TaskType.classification
+        except Exception:
+            effective_task_type = TaskType.classification
 
         # 2. Baseline evaluation
-        baseline_result = EvaluateTool().evaluate(working_df, target_col)
-        baseline_auc = baseline_result.auc
-        current_auc = baseline_auc
+        baseline_result = EvaluateTool().evaluate(working_df, target_col, effective_task_type)
+        baseline_metric = baseline_result.primary_metric
+        current_metric = baseline_metric
         current_shap = ShapTool().format_for_llm(baseline_result)
         profile = ProfileTool().profile(working_df, target_col)
 
@@ -52,14 +63,17 @@ class AgentLoop:
         baseline_entry = {
             "iteration": 0,
             "status": "baseline",
-            "auc": baseline_auc,
-            "f1": baseline_result.f1,
+            "auc": baseline_metric,
+            "f1": baseline_result.secondary_metric,
+            "primary_metric": baseline_metric,
+            "secondary_metric": baseline_result.secondary_metric,
+            "task_type": effective_task_type.value,
             "features_used": baseline_result.feature_names,
         }
         trace_entries: list[dict] = [baseline_entry]
         _write_trace(trace_entries)
 
-        print(f"Baseline AUC: {baseline_auc:.4f}")
+        print(f"Baseline {effective_task_type.value} metric: {baseline_metric:.4f}")
 
         reasoner = LLMReasoner()
         iteration_records: list[IterationRecord] = []
@@ -68,7 +82,7 @@ class AgentLoop:
         # 4. Iteration loop — INV-04: hard cap at 10 regardless of max_iter
         effective_max = min(max_iter, 10)
         for i in range(1, effective_max + 1):
-            auc_before = current_auc
+            metric_before = current_metric
 
             # a. LLM reason
             reasoning = reasoner.reason(
@@ -76,6 +90,7 @@ class AgentLoop:
                 shap_summary=current_shap,
                 iteration_history=iteration_records,
                 current_features=[c for c in working_df.columns if c != target_col],
+                task_type=effective_task_type,
             )
 
             # b. Execute transformation in sandbox
@@ -88,8 +103,8 @@ class AgentLoop:
                     hypothesis=reasoning.hypothesis,
                     feature_name=reasoning.feature_name,
                     transformation_code=reasoning.transformation_code,
-                    auc_before=auc_before,
-                    auc_after=auc_before,
+                    auc_before=metric_before,
+                    auc_after=metric_before,
                     auc_delta=0.0,
                     shap_summary=_empty_shap_summary(),
                     decision="error",
@@ -110,7 +125,8 @@ class AgentLoop:
             new_col_series = exec_result.output_df[reasoning.feature_name]
             target_series = exec_result.output_df[target_col]
             leak = LeakageDetector().is_leaking(
-                new_col_series, target_series, reasoning.feature_name, target_col
+                new_col_series, target_series, reasoning.feature_name, target_col,
+                task_type=effective_task_type,
             )
 
             if leak.is_leaking:
@@ -119,8 +135,8 @@ class AgentLoop:
                     hypothesis=reasoning.hypothesis,
                     feature_name=reasoning.feature_name,
                     transformation_code=reasoning.transformation_code,
-                    auc_before=auc_before,
-                    auc_after=auc_before,
+                    auc_before=metric_before,
+                    auc_after=metric_before,
                     auc_delta=0.0,
                     shap_summary=_empty_shap_summary(),
                     decision="discarded",
@@ -139,20 +155,25 @@ class AgentLoop:
 
             # e. Evaluate with new feature
             candidate_df = exec_result.output_df
-            new_eval = EvaluateTool().evaluate(candidate_df, target_col)
-            auc_after = new_eval.auc
-            auc_delta = auc_after - auc_before
+            new_eval = EvaluateTool().evaluate(candidate_df, target_col, effective_task_type)
+            metric_after = new_eval.primary_metric
+            metric_delta = metric_after - metric_before
 
             # f. SHAP summary for next iteration's LLM context
             new_shap = ShapTool().format_for_llm(new_eval)
 
             # g. Decide keep / discard
-            decision = "kept" if auc_delta > 0 else "discarded"
+            # For regression: lower RMSE is better → keep if delta < 0
+            # For classification: higher AUC is better → keep if delta > 0
+            if effective_task_type == TaskType.regression:
+                decision = "kept" if metric_delta < 0 else "discarded"
+            else:
+                decision = "kept" if metric_delta > 0 else "discarded"
 
             # h. Update working df if kept
             if decision == "kept":
                 working_df = copy.deepcopy(candidate_df)
-                current_auc = auc_after
+                current_metric = metric_after
                 current_shap = new_shap
                 profile = ProfileTool().profile(working_df, target_col)
 
@@ -162,9 +183,9 @@ class AgentLoop:
                 hypothesis=reasoning.hypothesis,
                 feature_name=reasoning.feature_name,
                 transformation_code=reasoning.transformation_code,
-                auc_before=auc_before,
-                auc_after=auc_after,
-                auc_delta=auc_delta,
+                auc_before=metric_before,
+                auc_after=metric_after,
+                auc_delta=metric_delta,
                 shap_summary=new_shap,
                 decision=decision,
                 error_message=None,
@@ -174,10 +195,10 @@ class AgentLoop:
             trace_entries.append(record.model_dump())
             _write_trace(trace_entries)
 
-            print(f"Iteration {i}: AUC {auc_after:.4f} (delta {auc_delta:+.4f}) — {decision}")
+            print(f"Iteration {i}: metric {metric_after:.4f} (delta {metric_delta:+.4f}) — {decision}")
 
             # j. Early stop check
-            if abs(auc_delta) < EARLY_STOP_DELTA:
+            if abs(metric_delta) < EARLY_STOP_DELTA:
                 small_delta_count += 1
             else:
                 small_delta_count = 0
@@ -189,8 +210,9 @@ class AgentLoop:
         final_features = [c for c in working_df.columns if c != target_col]
 
         return AgentTrace(
-            baseline_auc=baseline_auc,
+            baseline_metric=baseline_metric,
             iterations=iteration_records,
             final_feature_set=final_features,
-            final_auc=current_auc,
+            final_metric=current_metric,
+            task_type=effective_task_type,
         )

@@ -36,7 +36,11 @@ def evaluate_features(df_json: str, target_col: str) -> dict:
     """Train LightGBM on the dataframe and return AUC, F1, and SHAP values."""
     df = pd.read_json(df_json)
     result = EvaluateTool().evaluate(df, target_col)
-    return result.model_dump()
+    output = result.model_dump()
+    # Backward-compatible aliases to preserve MCP schema stability (INV-08)
+    output.setdefault("auc", result.primary_metric)
+    output.setdefault("f1", result.secondary_metric)
+    return output
 
 
 @mcp.tool()
