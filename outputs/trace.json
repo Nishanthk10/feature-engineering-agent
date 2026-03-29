@@ -2,184 +2,385 @@
   {
     "iteration": 0,
     "status": "baseline",
-    "auc": 0.6145454545454545,
-    "f1": 0.58,
+    "auc": 7841.824583153485,
+    "f1": 0.8363815566428172,
+    "primary_metric": 7841.824583153485,
+    "secondary_metric": 0.8363815566428172,
+    "task_type": "regression",
     "features_used": [
-      "age",
-      "income",
-      "account_balance",
-      "city_code",
-      "num_products",
-      "years_as_customer",
-      "last_contact_days",
-      "num_contacts",
-      "prev_outcome",
-      "marital_status_code",
-      "education_code",
-      "job_code"
+      "sqft",
+      "bedrooms",
+      "bathrooms",
+      "age_years",
+      "distance_to_center",
+      "neighbourhood_code",
+      "condition_score",
+      "garage",
+      "floors"
     ]
   },
   {
     "iteration": 1,
-    "hypothesis": "The ratio of account balance to income serves as a proxy for financial liquidity and potential savings behavior, which often differentiates customer segments better than raw values alone.",
-    "feature_name": "balance_to_income_ratio",
-    "transformation_code": "df['balance_to_income_ratio'] = df['account_balance'] / (df['income'] + 1e-6)",
-    "auc_before": 0.6145454545454545,
-    "auc_after": 0.6067676767676767,
-    "auc_delta": -0.007777777777777772,
+    "hypothesis": "The interaction between property size (sqft) and age is critical because the relative value of space changes as a building ages; larger older homes often suffer from depreciation differently than larger newer homes, and this non-linear relationship will help the model better estimate value.",
+    "feature_name": "sqft_age_interaction",
+    "transformation_code": "df['sqft_age_interaction'] = df['sqft'] * df['age_years']",
+    "auc_before": 7841.824583153485,
+    "auc_after": 7588.5442096032375,
+    "auc_delta": -253.28037355024753,
     "shap_summary": {
       "ranked_features": [
         {
-          "feature_name": "balance_to_income_ratio",
-          "mean_abs_shap": 0.2270416659018447,
+          "feature_name": "age_years",
+          "mean_abs_shap": 8720.03485110607,
           "rank": 1
         },
         {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.19097844372428277,
+          "feature_name": "sqft",
+          "mean_abs_shap": 4304.314996465526,
           "rank": 2
         },
         {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.15237780204058132,
+          "feature_name": "condition_score",
+          "mean_abs_shap": 3991.4859449762575,
           "rank": 3
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 0.13954024128930537,
+          "feature_name": "distance_to_center",
+          "mean_abs_shap": 1430.1901266308914,
           "rank": 4
         },
         {
-          "feature_name": "age",
-          "mean_abs_shap": 0.1255613970887912,
+          "feature_name": "sqft_age_interaction",
+          "mean_abs_shap": 468.82117628015635,
           "rank": 5
         },
         {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.12206284736462117,
+          "feature_name": "neighbourhood_code",
+          "mean_abs_shap": 45.432265492035555,
           "rank": 6
         },
         {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.08035819301499358,
+          "feature_name": "garage",
+          "mean_abs_shap": 22.136491460808728,
           "rank": 7
         },
         {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.04751100479664398,
+          "feature_name": "bedrooms",
+          "mean_abs_shap": 0.0,
           "rank": 8
         },
         {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.04720174540913626,
+          "feature_name": "bathrooms",
+          "mean_abs_shap": 0.0,
           "rank": 9
         },
         {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.04472610928208685,
+          "feature_name": "floors",
+          "mean_abs_shap": 0.0,
+          "rank": 10
+        }
+      ],
+      "top_3_summary": "Top features by importance: (1) age_years (shap=8720.035), (2) sqft (shap=4304.315), (3) condition_score (shap=3991.486)"
+    },
+    "decision": "kept",
+    "error_message": null,
+    "status": "completed"
+  },
+  {
+    "iteration": 2,
+    "hypothesis": "The utility and value of a property are often highly dependent on the density of bathrooms relative to the size of the house. By creating a 'sqft_per_bathroom' ratio, we capture the 'spaciousness' or luxury level of the property, as a large home with very few bathrooms may be less desirable than a medium home with many, helping the model capture non-linear preferences for convenience.",
+    "feature_name": "sqft_per_bathroom",
+    "transformation_code": "df['sqft_per_bathroom'] = df['sqft'] / (df['bathrooms'].replace(0, 1))",
+    "auc_before": 7588.5442096032375,
+    "auc_after": 7993.73181105716,
+    "auc_delta": 405.18760145392207,
+    "shap_summary": {
+      "ranked_features": [
+        {
+          "feature_name": "age_years",
+          "mean_abs_shap": 8553.2944117778,
+          "rank": 1
+        },
+        {
+          "feature_name": "sqft",
+          "mean_abs_shap": 4096.195712005354,
+          "rank": 2
+        },
+        {
+          "feature_name": "condition_score",
+          "mean_abs_shap": 3857.3927835200607,
+          "rank": 3
+        },
+        {
+          "feature_name": "distance_to_center",
+          "mean_abs_shap": 1542.62140402115,
+          "rank": 4
+        },
+        {
+          "feature_name": "sqft_age_interaction",
+          "mean_abs_shap": 688.1300651213659,
+          "rank": 5
+        },
+        {
+          "feature_name": "sqft_per_bathroom",
+          "mean_abs_shap": 418.6293230703991,
+          "rank": 6
+        },
+        {
+          "feature_name": "neighbourhood_code",
+          "mean_abs_shap": 29.41377763232344,
+          "rank": 7
+        },
+        {
+          "feature_name": "garage",
+          "mean_abs_shap": 7.2610999376711405,
+          "rank": 8
+        },
+        {
+          "feature_name": "bedrooms",
+          "mean_abs_shap": 6.511420314741793,
+          "rank": 9
+        },
+        {
+          "feature_name": "bathrooms",
+          "mean_abs_shap": 0.0,
           "rank": 10
         },
         {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.036584070471876944,
+          "feature_name": "floors",
+          "mean_abs_shap": 0.0,
           "rank": 11
-        },
-        {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.031069497460098763,
-          "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.02028734091433675,
-          "rank": 13
         }
       ],
-      "top_3_summary": "Top features by importance: (1) balance_to_income_ratio (shap=0.227), (2) last_contact_days (shap=0.191), (3) job_code (shap=0.152)"
+      "top_3_summary": "Top features by importance: (1) age_years (shap=8553.294), (2) sqft (shap=4096.196), (3) condition_score (shap=3857.393)"
     },
     "decision": "discarded",
     "error_message": null,
     "status": "completed"
   },
   {
-    "iteration": 2,
-    "hypothesis": "The frequency of contact relative to the duration of the relationship provides a measure of 'intensity' or 'churn pressure'. A high number of contacts over a short period may indicate an aggressive retention campaign, while frequent contacts over a very long tenure might indicate a high-touch or high-value client relationship.",
-    "feature_name": "contact_intensity_ratio",
-    "transformation_code": "df['contact_intensity_ratio'] = df['num_contacts'] / (df['years_as_customer'] + 1)",
-    "auc_before": 0.6145454545454545,
-    "auc_after": 0.6255555555555556,
-    "auc_delta": 0.011010101010101137,
+    "iteration": 3,
+    "hypothesis": "The interaction between condition_score and age_years helps identify 'fixer-uppers' versus well-maintained older properties. A high condition score on an old house typically indicates significant capital investment (renovations), which creates a premium value that simple linear additive features struggle to capture.",
+    "feature_name": "condition_age_interaction",
+    "transformation_code": "df['condition_age_interaction'] = df['condition_score'] * df['age_years']",
+    "auc_before": 7588.5442096032375,
+    "auc_after": 7463.404888728141,
+    "auc_delta": -125.13932087509693,
     "shap_summary": {
       "ranked_features": [
         {
-          "feature_name": "account_balance",
-          "mean_abs_shap": 0.24650253138002615,
+          "feature_name": "age_years",
+          "mean_abs_shap": 8557.080155839503,
           "rank": 1
         },
         {
-          "feature_name": "last_contact_days",
-          "mean_abs_shap": 0.17190179471790143,
+          "feature_name": "sqft",
+          "mean_abs_shap": 4344.685492353255,
           "rank": 2
         },
         {
-          "feature_name": "contact_intensity_ratio",
-          "mean_abs_shap": 0.15344134816251664,
+          "feature_name": "condition_score",
+          "mean_abs_shap": 4061.619915902559,
           "rank": 3
         },
         {
-          "feature_name": "job_code",
-          "mean_abs_shap": 0.14033051215527467,
+          "feature_name": "distance_to_center",
+          "mean_abs_shap": 1534.2683424649128,
           "rank": 4
         },
         {
-          "feature_name": "income",
-          "mean_abs_shap": 0.12969386942158084,
+          "feature_name": "condition_age_interaction",
+          "mean_abs_shap": 591.5057661400452,
           "rank": 5
         },
         {
-          "feature_name": "age",
-          "mean_abs_shap": 0.11763944678162674,
+          "feature_name": "sqft_age_interaction",
+          "mean_abs_shap": 483.20622702759596,
           "rank": 6
         },
         {
-          "feature_name": "marital_status_code",
-          "mean_abs_shap": 0.0944790108402324,
+          "feature_name": "neighbourhood_code",
+          "mean_abs_shap": 46.21626459193924,
           "rank": 7
         },
         {
-          "feature_name": "prev_outcome",
-          "mean_abs_shap": 0.051746509279869554,
+          "feature_name": "garage",
+          "mean_abs_shap": 22.136491460808728,
           "rank": 8
         },
         {
-          "feature_name": "years_as_customer",
-          "mean_abs_shap": 0.04915349190879275,
+          "feature_name": "floors",
+          "mean_abs_shap": 8.360945825687715,
           "rank": 9
         },
         {
-          "feature_name": "city_code",
-          "mean_abs_shap": 0.041707370422152806,
+          "feature_name": "bedrooms",
+          "mean_abs_shap": 0.0,
           "rank": 10
         },
         {
-          "feature_name": "num_contacts",
-          "mean_abs_shap": 0.0414186613614409,
+          "feature_name": "bathrooms",
+          "mean_abs_shap": 0.0,
+          "rank": 11
+        }
+      ],
+      "top_3_summary": "Top features by importance: (1) age_years (shap=8557.080), (2) sqft (shap=4344.685), (3) condition_score (shap=4061.620)"
+    },
+    "decision": "kept",
+    "error_message": null,
+    "status": "completed"
+  },
+  {
+    "iteration": 4,
+    "hypothesis": "The relationship between distance to the city center and the size of the property is a primary driver of real estate value. Properties further from the center generally have a lower price per square foot, and modeling this interaction allows the model to capture the varying premium of land value across different urban zones.",
+    "feature_name": "sqft_distance_interaction",
+    "transformation_code": "df['sqft_distance_interaction'] = df['sqft'] * df['distance_to_center']",
+    "auc_before": 7463.404888728141,
+    "auc_after": 7717.701313248801,
+    "auc_delta": 254.29642452066037,
+    "shap_summary": {
+      "ranked_features": [
+        {
+          "feature_name": "age_years",
+          "mean_abs_shap": 8868.803343923784,
+          "rank": 1
+        },
+        {
+          "feature_name": "sqft",
+          "mean_abs_shap": 3892.930316441773,
+          "rank": 2
+        },
+        {
+          "feature_name": "condition_score",
+          "mean_abs_shap": 3802.632294100528,
+          "rank": 3
+        },
+        {
+          "feature_name": "distance_to_center",
+          "mean_abs_shap": 1303.4894334554597,
+          "rank": 4
+        },
+        {
+          "feature_name": "sqft_distance_interaction",
+          "mean_abs_shap": 747.3968746239069,
+          "rank": 5
+        },
+        {
+          "feature_name": "condition_age_interaction",
+          "mean_abs_shap": 739.1577333341646,
+          "rank": 6
+        },
+        {
+          "feature_name": "sqft_age_interaction",
+          "mean_abs_shap": 456.16775433560287,
+          "rank": 7
+        },
+        {
+          "feature_name": "neighbourhood_code",
+          "mean_abs_shap": 99.03680292778277,
+          "rank": 8
+        },
+        {
+          "feature_name": "garage",
+          "mean_abs_shap": 22.136491460808728,
+          "rank": 9
+        },
+        {
+          "feature_name": "bedrooms",
+          "mean_abs_shap": 0.0,
+          "rank": 10
+        },
+        {
+          "feature_name": "bathrooms",
+          "mean_abs_shap": 0.0,
           "rank": 11
         },
         {
-          "feature_name": "education_code",
-          "mean_abs_shap": 0.040526400191343896,
+          "feature_name": "floors",
+          "mean_abs_shap": 0.0,
           "rank": 12
-        },
-        {
-          "feature_name": "num_products",
-          "mean_abs_shap": 0.03801368861036641,
-          "rank": 13
         }
       ],
-      "top_3_summary": "Top features by importance: (1) account_balance (shap=0.247), (2) last_contact_days (shap=0.172), (3) contact_intensity_ratio (shap=0.153)"
+      "top_3_summary": "Top features by importance: (1) age_years (shap=8868.803), (2) sqft (shap=3892.930), (3) condition_score (shap=3802.632)"
     },
-    "decision": "kept",
+    "decision": "discarded",
+    "error_message": null,
+    "status": "completed"
+  },
+  {
+    "iteration": 5,
+    "hypothesis": "The utility of a property is heavily influenced by the ratio of living space to the number of bedrooms, representing the average size per occupant or 'spaciousness'. This metric acts as a proxy for the 'roominess' of the dwelling, which is a major driver of market value independent of the total square footage, especially when comparing compact homes versus sprawling estates.",
+    "feature_name": "sqft_per_bedroom",
+    "transformation_code": "df['sqft_per_bedroom'] = df['sqft'] / (df['bedrooms'] + 1)",
+    "auc_before": 7463.404888728141,
+    "auc_after": 7463.742960291454,
+    "auc_delta": 0.3380715633138607,
+    "shap_summary": {
+      "ranked_features": [
+        {
+          "feature_name": "age_years",
+          "mean_abs_shap": 8627.856232664313,
+          "rank": 1
+        },
+        {
+          "feature_name": "sqft",
+          "mean_abs_shap": 4137.291428504559,
+          "rank": 2
+        },
+        {
+          "feature_name": "condition_score",
+          "mean_abs_shap": 3968.644501686821,
+          "rank": 3
+        },
+        {
+          "feature_name": "distance_to_center",
+          "mean_abs_shap": 1385.3417074510435,
+          "rank": 4
+        },
+        {
+          "feature_name": "sqft_age_interaction",
+          "mean_abs_shap": 605.2533870718244,
+          "rank": 5
+        },
+        {
+          "feature_name": "condition_age_interaction",
+          "mean_abs_shap": 566.756286463467,
+          "rank": 6
+        },
+        {
+          "feature_name": "sqft_per_bedroom",
+          "mean_abs_shap": 498.57695028283274,
+          "rank": 7
+        },
+        {
+          "feature_name": "neighbourhood_code",
+          "mean_abs_shap": 75.61709848507459,
+          "rank": 8
+        },
+        {
+          "feature_name": "garage",
+          "mean_abs_shap": 20.13669158158135,
+          "rank": 9
+        },
+        {
+          "feature_name": "bedrooms",
+          "mean_abs_shap": 0.0,
+          "rank": 10
+        },
+        {
+          "feature_name": "bathrooms",
+          "mean_abs_shap": 0.0,
+          "rank": 11
+        },
+        {
+          "feature_name": "floors",
+          "mean_abs_shap": 0.0,
+          "rank": 12
+        }
+      ],
+      "top_3_summary": "Top features by importance: (1) age_years (shap=8627.856), (2) sqft (shap=4137.291), (3) condition_score (shap=3968.645)"
+    },
+    "decision": "discarded",
     "error_message": null,
     "status": "completed"
   }

@@ -5,7 +5,7 @@
 **Engineer:** Nishanth
 **Branch:** session/s05_regression_mlflow
 **Claude.md version:** v1.2
-**Status:** In Progress
+**Status:** Completed
 
 ## Tasks
 
@@ -15,7 +15,7 @@
 | 5.2 | MLflow integration | Completed | a8871bb |
 | 5.3 | Trace viewer endpoint | Completed | c622041 |
 | 5.4 | README and architecture diagram | Completed | bc6b47d |
-| 5.5 | End-to-end hardening | | |
+| 5.5 | End-to-end hardening | Completed | 23bd8f0 |
 
 ---
 
@@ -29,6 +29,8 @@
 | 5.2 | Rejected 2 CC Challenge cases: metric correctness, hypothesis truncation | Not invariants, cosmetic |
 | 5.3 | Accepted 5 CC Challenge cases: RMSE label, discarded/error rendering, error_message, SHAP absent | Different conditional branches all need coverage |
 | 5.3 | Rejected 2 CC Challenge cases: lift value, baseline fallback | Cosmetic or backward compat |
+| 5.5 | Accepted 5 CC Challenge cases: row count, float dtype, age_years guard, RMSE baseline, label check | Data integrity and auto-detection coverage |
+| 5.5 | Rejected 3 CC Challenge cases: improvement math, section header, skip guard | Cosmetic, low priority, meta-testing |
 
 
 ---
@@ -38,7 +40,7 @@
 | Task | Deviation observed | Action taken |
 |------|--------------------|--------------|
 | 5.3 | TestMLflowCreatesArtifacts failed in full suite due to mlflow global state — passed in isolation | Marked @pytest.mark.e2e — requires real MLflow and clean global state, not a unit test |
-
+| 5.5 | run_agent.py printed "AUC" labels for regression runs | Fixed label to show "RMSE" and "Improvement (lower is better)" for regression task type |
 ---
 
 ## Claude.md Changes
@@ -50,8 +52,8 @@
 ---
 
 ## Session Completion
-**Session integration check:** [ ] PASSED
-**All tasks verified:** [ ] Yes
+**Session integration check:** [x] PASSED
+**All tasks verified:** [x] Yes
 **PR raised:** [ ] Yes — PR #: session/s05_regression_mlflow → main
-**Status updated to:** 
-**Engineer sign-off:**
+**Status updated to:** Completed
+**Engineer sign-off:** Nishanth
