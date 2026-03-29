@@ -14,7 +14,7 @@
 | 5.1 | Regression target support | Completed | 062bba5 |
 | 5.2 | MLflow integration | Completed | a8871bb |
 | 5.3 | Trace viewer endpoint | Completed | c622041 |
-| 5.4 | README and architecture diagram | | |
+| 5.4 | README and architecture diagram | Completed | bc6b47d |
 | 5.5 | End-to-end hardening | | |
 
 ---

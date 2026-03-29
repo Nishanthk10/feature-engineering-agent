@@ -1,10 +1,17 @@
 """
-Generate synthetic_churn.csv — 1000 rows, binary churn target.
+Generate synthetic datasets for benchmarking.
 
+synthetic_churn.csv — 1000 rows, binary churn target.
 Hidden signal: churn is strongly predicted by
     (income / account_balance) * (1 / (last_contact_days + 1))
 plus Gaussian noise. The agent should discover a ratio feature and a
 recency-decay feature to recover this signal.
+
+synthetic_regression.csv — 1000 rows, continuous price target.
+Hidden signal: price is strongly driven by
+    (sqft / age_years) * condition_score + (1 / distance_to_center) * 10000
+plus Gaussian noise. The agent should discover an area-efficiency ratio and
+a location-decay feature to recover this signal.
 """
 import pathlib
 
@@ -53,8 +60,50 @@ def generate(seed: int = 42, n: int = 1000) -> pd.DataFrame:
     })
 
 
+def generate_regression_dataset(seed: int = 42, n: int = 1000) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+
+    sqft = rng.integers(500, 4000, n).astype(float)
+    bedrooms = rng.integers(1, 6, n)
+    bathrooms = rng.integers(1, 4, n)
+    age_years = rng.integers(1, 80, n).astype(float)
+    distance_to_center = rng.uniform(0.5, 30.0, n)
+    neighbourhood_code = rng.integers(1, 15, n)
+    condition_score = rng.uniform(1.0, 10.0, n)
+    garage = rng.integers(0, 2, n)
+    floors = rng.integers(1, 4, n)
+
+    # Hidden signal: area-efficiency ratio + location decay
+    area_efficiency = (sqft / age_years) * condition_score
+    location_decay = (1.0 / distance_to_center) * 10_000
+
+    base_price = 50_000 + area_efficiency * 20.0 + location_decay
+    noise = rng.standard_normal(n) * base_price.std() * 0.15
+    price = (base_price + noise).clip(min=20_000)
+
+    return pd.DataFrame({
+        "sqft": sqft,
+        "bedrooms": bedrooms,
+        "bathrooms": bathrooms,
+        "age_years": age_years,
+        "distance_to_center": distance_to_center,
+        "neighbourhood_code": neighbourhood_code,
+        "condition_score": condition_score,
+        "garage": garage,
+        "floors": floors,
+        "price": price,
+    })
+
+
 if __name__ == "__main__":
-    df = generate()
-    out = pathlib.Path(__file__).parent / "synthetic_churn.csv"
-    df.to_csv(out, index=False)
-    print(f"Saved {len(df)} rows to {out}")
+    data_dir = pathlib.Path(__file__).parent
+
+    df_churn = generate()
+    out_churn = data_dir / "synthetic_churn.csv"
+    df_churn.to_csv(out_churn, index=False)
+    print(f"Saved {len(df_churn)} rows to {out_churn}")
+
+    df_reg = generate_regression_dataset()
+    out_reg = data_dir / "synthetic_regression.csv"
+    df_reg.to_csv(out_reg, index=False)
+    print(f"Saved {len(df_reg)} rows to {out_reg}")

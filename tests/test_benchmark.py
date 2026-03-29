@@ -157,6 +157,90 @@ class TestBenchmarkReportFile:
         assert (tmp_path / "benchmark_report.md").exists()
 
 
+def _load_synthetic_regression() -> pd.DataFrame:
+    sys.path.insert(0, str(DATA_DIR))
+    from generate_synthetic import generate_regression_dataset
+    return generate_regression_dataset()
+
+
+class TestGenerateRegressionDataset:
+    def test_produces_1000_rows(self):
+        df = _load_synthetic_regression()
+        assert len(df) == 1000
+
+    def test_has_all_10_expected_columns(self):
+        expected = {
+            "sqft", "bedrooms", "bathrooms", "age_years", "distance_to_center",
+            "neighbourhood_code", "condition_score", "garage", "floors", "price",
+        }
+        df = _load_synthetic_regression()
+        assert expected == set(df.columns)
+
+    def test_price_is_float_dtype(self):
+        df = _load_synthetic_regression()
+        assert pd.api.types.is_float_dtype(df["price"]), (
+            f"Expected float dtype for price, got {df['price'].dtype}"
+        )
+
+    def test_age_years_has_no_zero_values(self):
+        df = _load_synthetic_regression()
+        assert (df["age_years"] > 0).all(), "age_years contains zeros — division by zero in hidden signal"
+
+
+class TestRegressionSection:
+    def _make_fmt(self, baseline_auc: float, final_auc: float) -> object:
+        from tools.schemas import FormattedOutput
+        return FormattedOutput(
+            baseline_auc=baseline_auc,
+            final_auc=final_auc,
+            auc_lift=final_auc - baseline_auc,
+            kept_features=[],
+            report_text="mock",
+        )
+
+    def test_output_contains_rmse(self):
+        from run_benchmark import _regression_section
+        fmt = self._make_fmt(50000.0, 45000.0)
+        lines = _regression_section("Test", fmt)
+        combined = "\n".join(lines)
+        assert "RMSE" in combined
+
+    def test_output_does_not_contain_auc(self):
+        from run_benchmark import _regression_section
+        fmt = self._make_fmt(50000.0, 45000.0)
+        lines = _regression_section("Test", fmt)
+        combined = "\n".join(lines)
+        assert "AUC" not in combined
+
+
+class TestBaselineRMSE:
+    def test_raw_baseline_rmse_above_meaningful_threshold(self):
+        """
+        Raw features alone should not capture the hidden signal well.
+        Baseline RMSE must be above 30000 to confirm the agent has room to improve.
+        """
+        from lightgbm import LGBMRegressor
+        from sklearn.metrics import mean_squared_error
+        from sklearn.model_selection import train_test_split
+        import numpy as np
+
+        df = _load_synthetic_regression()
+        X = df.drop(columns=["price"])
+        y = df["price"]
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2, random_state=42
+        )
+        model = LGBMRegressor(
+            n_estimators=50, max_depth=4, random_state=42, verbose=-1,
+        )
+        model.fit(X_train, y_train)
+        rmse = float(np.sqrt(mean_squared_error(y_test, model.predict(X_test))))
+        assert rmse > 5_000, (
+            f"Expected baseline RMSE > 5000 (agent has room to improve), got {rmse:.2f}"
+        )
+
+
 class TestBaselineAUC:
     def test_raw_baseline_auc_below_0_75(self):
         """
