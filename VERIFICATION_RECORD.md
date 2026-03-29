@@ -1,46 +1,45 @@
 # VERIFICATION_RECORD.md
 
-**Session:** S4 — MCP Exposure + UI
+**Session:** S5 — Regression + MLflow + Observability + Hardening
 **Date:** 2026-03-28
 **Engineer:** Nishanth
 
 ---
 
-## Task 4.1 — MCP server
+## Task 5.1 — Regression target support
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 4
+Source: EXECUTION_PLAN.md Session 5
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | profile_dataset called directly | Returns dict with row_count key | PASS |
-| TC-2 | execute_feature_code valid code | Returns dict with success=True | PASS |
-| TC-3 | evaluate_features on small df | Returns dict with auc key | PASS |
-| TC-4 | get_shap_values on eval result | Returns dict with ranked_features key | PASS |
+| TC-1 | Target with 50 unique floats, no flag | TaskType.regression auto-detected | PASS |
+| TC-2 | Binary target, no flag | TaskType.classification auto-detected | PASS |
+| TC-3 | --task-type regression flag override | TaskType.regression regardless of auto-detect | PASS |
+| TC-4 | EvaluateTool regression run | primary_metric is RMSE (float > 0) | PASS |
+| TC-5 | Classification still works | Existing test_evaluate.py still passes | PASS |
 
 ### Prediction Statement
-TC-1: profile_dataset called directly with a valid CSV path and target column will return a dict containing row_count key
-TC-2: execute_feature_code with valid pandas transformation code will return a dict with success=True
-TC-3: evaluate_features on a small DataFrame will return a dict containing an auc key with a float value
-TC-4: get_shap_values on a valid EvaluationResult JSON will return a dict containing ranked_features key as a list
+TC-1: a target column with 50 unique float values and no flag will auto-detect as TaskType.regression
+TC-2: a binary target column with no flag will auto-detect as TaskType.classification
+TC-3: passing --task-type regression will override auto-detection regardless of what the column looks like
+TC-4: EvaluateTool with TaskType.regression will return primary_metric as RMSE — a positive float
+TC-5: all existing test_evaluate.py tests will still pass after the branching is added
 
 ### CC Challenge Output
-- get_shap_values invalid JSON: accepted — unhandled exception crashes server, added try/except and test
-- Blocked import at MCP layer: accepted — security boundary uncovered, added test
-- FastMCP registration: accepted — silent decorator failure invisible, added test
-- profile_dataset nonexistent path: rejected — covered in test_data_loader.py
-- row count preservation: rejected — covered in test_execute.py
-- feature_names excludes target: rejected — covered in test_evaluate.py
+- AgentLoop regression keep/discard logic: accepted — inverted logic had zero coverage, added 4 tests
+- LLMReasoner task_type injection: accepted — dynamic append untested, added 2 tests
+- detect_task_type() boundary at exactly 20: accepted — boundary on hard threshold, added test
+- LeakageDetector high-MI regression branch: accepted — security gap, added test
+- --task-type CLI flag forwarding: rejected — covered in e2e
+- mcp_server.py f1 alias: rejected — backward compat shim, covered by model_validator
 
 
 ### Code Review
-Invariant touched: INV-08 (MCP tool contract stability)
-- profile_dataset signature matches DatasetProfile schema — confirmed
-- execute_feature_code signature matches ExecuteResult schema — confirmed
-- evaluate_features signature matches EvaluationResult schema — confirmed
-- get_shap_values signature matches ShapSummary schema — confirmed
-- All tools return model_dump() — no raw objects — confirmed
-- No tool modifies TaskType — confirmed
+Invariant touched: INV-10 (TaskType locked before loop starts)
+- Confirm TaskType set in DatasetLoader before AgentLoop.run() called
+- Confirm no tool modifies TaskType after it is set
+- Confirm AgentTrace.task_type field is populated
 
 ### Scope Decisions
 
@@ -55,40 +54,41 @@ Invariant touched: INV-08 (MCP tool contract stability)
 
 ---
 
-## Task 4.2 — FastAPI backend
+## Task 5.2 — MLflow integration
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 4
+Source: EXECUTION_PLAN.md Session 5
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | GET / | Returns 200 | PASS |
-| TC-2 | GET /trace, no file | Returns {"trace": []} | PASS |
-| TC-3 | GET /status on startup | Returns {"status": "idle"} | PASS |
-| TC-4 | POST /run with valid CSV | Returns {"status": "started"} | PASS |
+| TC-1 | MLflow raises exception on start | Agent completes, trace.json written, no crash | PASS |
+| TC-2 | Normal run with max_iter=1 | mlruns/ directory created | PASS |
+| TC-3 | MLflow failure | Error does not appear in trace.json | PASS |
+| TC-4 | All existing tests | Still pass — loop.py changes are additive only | PASS |
 
 ### Prediction Statement
-TC-1: GET / will return HTTP 200 with the index.html content
-TC-2: GET /trace when no trace.json exists will return {"trace": []} without error
-TC-3: GET /status on a fresh startup will return {"status": "idle"} before any run has been triggered
-TC-4: POST /run with a valid CSV file and target column name will return {"status": "started"} immediately without waiting for the agent to complete
-
+TC-1: when mlflow.start_run raises Exception the agent will complete normally, return a valid AgentTrace, and write trace.json — no crash
+TC-2: a normal run with max_iter=1 will create the mlruns/directory on disk 
+TC-3: a MLflow failure will not add any error information to trace.json — the trace is determined by the agent loop only
+TC-4: all existing loop tests will still pass after MLflow calls are added — changes are purely additiv
 
 ### CC Challenge Output
-- Exception in _run_agent stuck at "running": accepted — silent failure mode, added test
-- Missing required fields returns 422: accepted — API contract, added tests
-- max_iter defaults to 5: accepted — stated requirement, added test
-- State transitions to "running": rejected — exception test covers finally block implicitly
-- GET /trace key name: rejected — covered by equality check
-- _run_agent normal completion: rejected — covered by exception test
-- GET / input elements: rejected — too brittle, HTML evolves in Task 4.3
+- Step 4 post-loop raises: accepted — different try/except block, added 3 tests
+- Step 2/3 nested raises with active parent: accepted — different branch, added 3 tests
+- Error/leakage iteration MLflow path: accepted — never executed, added 3 tests
+- iterations_run and total_lift values: rejected — MLflow metric correctness not an invariant
+- Hypothesis truncation at 250 chars: rejected — cosmetic log parameter
 
 
 ### Code Review
-No invariants directly touched — UI layer only.
-- Background thread confirmed as daemon — agent run does not block request
-- GET /trace returns {"trace": []} on missing file — confirmed, no 500
-- GET / serves static/index.html via FileResponse — confirmed
+Invariant touched: INV-11 (MLflow non-blocking)
+- Block 1 (parent run setup): wrapped in try/except — confirmed line [X]
+- Block 2 (baseline logging): wrapped in try/except — confirmed line [X]
+- Block 3 (iteration logging): wrapped in try/except — confirmed line [X]
+- Block 4 (final metrics + end_run): wrapped in try/except — confirmed line [X]
+- Top-level mlflow import guarded — mlflow=None on failure — confirmed
+- AgentTrace fields not derived from mlflow state — confirmed
+- trace.json write happens independently of mlflow — confirmed
 
 ### Scope Decisions
 
@@ -103,38 +103,40 @@ No invariants directly touched — UI layer only.
 
 ---
 
-## Task 4.3 — Streaming iteration updates
+## Task 5.3 — Trace viewer endpoint
 
 ### Test Cases Applied
-Source: EXECUTION_PLAN.md Session 4
+Source: EXECUTION_PLAN.md Session 5
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | GET /trace | Returns status field alongside trace array | PASS |
-| TC-2 | UI poll during run | New cards appear without page refresh | PASS |
-| TC-3 | Discarded feature | Decision shown as "discarded" | PASS |
+| TC-1 | GET /trace/view | Returns 200, content-type text/html | PASS |
+| TC-2 | Trace with 2 iterations | HTML contains "Iteration 1" and "Iteration 2" | PASS |
+| TC-3 | Kept feature | "kept" appears in green in HTML | PASS |
+| TC-4 | Regression trace | Metric label shows "RMSE" not "AUC" | PASS |
 
 ### Prediction Statement
-TC-1: GET /trace will return a JSON object containing both a "trace" array and a "status" field
-TC-2: the UI polls GET /trace every 3 seconds while status is "running" and appends new iteration cards without clearing previous ones — manual verification
-TC-3: an IterationRecord with decision="discarded" will render with the word "discarded" visible in the UI card
+TC-1: GET /trace/view will return HTTP 200 with content-type text/html
+TC-2: rendering a trace with 2 iterations will produce HTML containing the strings "Iteration 1" and "Iteration 2"
+TC-3: a kept feature in the trace will produce HTML containing the word "kept" styled in green
+TC-4: a trace with task_type="regression" will show "RMSE" as the metric label, not "AUC"
 
 ### CC Challenge Output
-- "status" value correctness in /trace: accepted — present-key gives false confidence, added 3 tests
-- Status field when agent is mid-run: accepted — running path never exercised, added test
-- appendNewCards idempotency: accepted — duplicate card regression, added test
-- Cross-endpoint consistency: rejected — lock used in both paths, integration-level
-- buildCard CSS class: rejected — too brittle, HTML evolves
-- Concurrent /run calls: rejected — race condition testing too complex for hackathon scope
+- Regression task type shows RMSE: accepted — TC-4 directly missed, added test
+- discarded decision rendering: accepted — different CSS branch, added test
+- error decision rendering: accepted — different CSS branch, added test
+- error_message appears for failed iterations: accepted — conditional render, added test
+- SHAP box absent when top_3_summary empty: accepted — conditional omission, added test
+- lift value correctness: rejected — cosmetic, not an invariant
+- baseline auc fallback: rejected — backward compat, low priority
 
 
 ### Code Review
 Invariant touched: INV-05 (trace completeness reflected in view)
-- Poll interval confirmed at 3000ms in index.html
-- renderedIterations counter appends cards — no clearing confirmed
-- Polling stops on status="complete" — confirmed
-- All trace entries rendered — no filtering or skipping in UI
-- Decision colour coding: kept=green, discarded=amber, error=red — confirmed
+- All trace iterations rendered — no filtering confirmed in _render_trace_html
+- Metric label switches on task_type field — confirmed
+- Missing trace returns graceful fallback — confirmed, no 500
+- html.escape() applied to hypothesis, code, feature name — confirmed
 
 ### Scope Decisions
 
@@ -146,39 +148,95 @@ Invariant touched: INV-05 (trace completeness reflected in view)
 [ Verified ] Scope decisions documented
 
 **Status:** Verified
-```
 
 ---
 
-**3. Send this to Claude Code:**
-```
-I am starting Session 4 (MCP Exposure + UI) of this project.
+## Task 5.4 — README and architecture diagram
 
-Re-read Claude.md from the .claude/ directory. Claude.md version 
-is v1.2. All invariants and scope boundaries apply without exception.
+### Test Cases Applied
+Source: EXECUTION_PLAN.md Session 5
 
-Session goal: all four agent tools accessible as MCP servers via 
-fastmcp. FastAPI serves a single-page HTML UI where a user can 
-upload a CSV, name the target column, run the agent, and watch 
-iterations stream in real time.
-
-I will give you one task at a time. Wait for my instruction before 
-starting each task. Do not build ahead. Do not create files not 
-listed in the task prompt.
-
-Ready to begin Task 4.1.
-```
-
----
-
-**4. Write your prediction statement for Task 4.1 before pasting the CC prompt:**
-```
+| Case | Scenario | Expected | Result |
+|------|----------|----------|--------|
+| TC-1 | README.md exists | All 8 sections present | PASS |
+| TC-2 | Both run commands in README | Classification and regression examples present | PASS |
+| TC-3 | MLflow UI command in README | mlflow ui command present | PASS |
+| TC-4 | Judging criteria table | All 8 criteria listed | PASS |
 ### Prediction Statement
-TC-1: profile_dataset called directly with a valid CSV path and 
-      target column will return a dict containing row_count key
-TC-2: execute_feature_code with valid pandas transformation code 
-      will return a dict with success=True
-TC-3: evaluate_features on a small DataFrame will return a dict 
-      containing an auc key with a float value
-TC-4: get_shap_values on a valid EvaluationResult JSON will return 
-      a dict containing ranked_features key as a list
+TC-1: README.md will exist and contain all 8 required sections identified by ## headers
+TC-2: README will contain both classification and regression run command examples
+TC-3: README will contain the mlflow ui command
+TC-4: README will contain a judging criteria table listing all 8 criteria
+
+### CC Challenge Output
+CC noted README has no executable code — no test cases to add.
+Factual accuracy checks performed manually:
+- MCP tool names match mcp_server.py — confirmed
+- CLI flags match run_agent.py — confirmed
+- API endpoints match api/main.py — confirmed
+- File paths exist on disk — confirmed
+No discrepancies found.
+
+
+### Code Review
+No invariants touched — documentation only.
+
+### Scope Decisions
+
+
+### Verification Verdict
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
+
+**Status:** Verified
+
+---
+
+## Task 5.5 — End-to-end hardening
+
+### Test Cases Applied
+Source: EXECUTION_PLAN.md Session 5
+
+| Case | Scenario | Expected | Result |
+|------|----------|----------|--------|
+| TC-1 | Classification e2e | final AUC > baseline AUC | PASS |
+| TC-2 | Regression e2e | final RMSE < baseline RMSE | PASS |
+| TC-3 | Regression trace.json | task_type="regression", metric values are RMSE | PASS |
+| TC-4 | generate_synthetic.py | Creates both synthetic_churn.csv and synthetic_regression.csv | PASS |
+
+### Prediction Statement
+TC-1: test_classification_auc_lift will complete with final AUC > baseline AUC on synthetic_churn.csv
+TC-2: test_regression_rmse_reduction will complete with final RMSE < baseline RMSE on synthetic_regression.csv
+TC-3: regression trace.json will contain task_type="regression" and metric values that are RMSE not AUC
+TC-4: data/generate_synthetic.py will create both synthetic_churn.csv and synthetic_regression.csv
+
+### CC Challenge Output
+- generate_regression_dataset() row count and columns: accepted — correctness check, added test
+- price is continuous float: accepted — ensures auto-detection works, added test
+- age_years never zero: accepted — division by zero guard, added test
+- baseline RMSE leaves room for improvement: accepted — same pattern as churn baseline test
+- _regression_section() contains RMSE not AUC: accepted — label correctness
+- improvement % math: rejected — cosmetic report text
+- section header check: rejected — low priority, covered by existing pattern
+- e2e skip guard: rejected — meta-testing pytest mechanics
+
+
+### Code Review
+Invariants touched: INV-10, INV-11 (all invariants in system-level test)
+- Classification e2e: task_type="classification" in trace — confirmed
+- Regression e2e: task_type="regression" in trace — confirmed
+- MLflow failure cannot cause either test to fail — INV-11 confirmed
+- Both tests isolated to tmp_path — no cross-test contamination
+
+### Scope Decisions
+
+
+### Verification Verdict
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
+
+**Status:** Verified

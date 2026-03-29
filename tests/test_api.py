@@ -256,3 +256,210 @@ class TestRunAgentExceptionHandling:
                 _run_agent("fake.csv", "target", 1)
             except Exception as exc:
                 pytest.fail(f"_run_agent propagated exception: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# GET /trace/view
+# ---------------------------------------------------------------------------
+
+_FIXTURE_TRACE = [
+    {
+        "iteration": 0,
+        "status": "baseline",
+        "auc": 0.70,
+        "f1": 0.62,
+        "primary_metric": 0.70,
+        "secondary_metric": 0.62,
+        "task_type": "classification",
+        "features_used": ["feat_a", "feat_b"],
+    },
+    {
+        "iteration": 1,
+        "status": "completed",
+        "hypothesis": "feat_a squared captures non-linear signal",
+        "feature_name": "feat_a_sq",
+        "transformation_code": "df['feat_a_sq'] = df['feat_a'] ** 2",
+        "auc_before": 0.70,
+        "auc_after": 0.73,
+        "auc_delta": 0.03,
+        "shap_summary": {
+            "ranked_features": [
+                {"feature_name": "feat_a_sq", "mean_abs_shap": 0.15, "rank": 1},
+                {"feature_name": "feat_a", "mean_abs_shap": 0.10, "rank": 2},
+            ],
+            "top_3_summary": "feat_a_sq (0.150), feat_a (0.100)",
+        },
+        "decision": "kept",
+        "error_message": None,
+    },
+]
+
+
+class TestTraceView:
+    def test_returns_200(self, client, tmp_path):
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace/view")
+        assert response.status_code == 200
+
+    def test_content_type_is_html(self, client, tmp_path):
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace/view")
+        assert "text/html" in response.headers["content-type"]
+
+    def test_no_trace_file_returns_html(self, client, tmp_path):
+        with patch("api.main.TRACE_PATH", tmp_path / "nonexistent.json"):
+            response = client.get("/trace/view")
+        assert b"Agent Reasoning Trace" in response.content
+
+    def test_fixture_trace_contains_baseline_heading(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"Baseline" in response.content
+
+    def test_fixture_trace_contains_task_type(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"classification" in response.content
+
+    def test_fixture_trace_contains_hypothesis(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"feat_a squared captures non-linear signal" in response.content
+
+    def test_fixture_trace_contains_feature_name(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"feat_a_sq" in response.content
+
+    def test_fixture_trace_contains_transformation_code(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"df[&#x27;feat_a_sq&#x27;] = df[&#x27;feat_a&#x27;] ** 2" in response.content
+
+    def test_fixture_trace_decision_kept_present(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"kept" in response.content
+
+    def test_fixture_trace_shap_summary_present(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"feat_a_sq (0.150)" in response.content
+
+    def test_fixture_trace_summary_section_present(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(_FIXTURE_TRACE))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"Summary" in response.content
+
+    def test_malformed_json_returns_html_gracefully(self, client, tmp_path):
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text("not valid json {")
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert response.status_code == 200
+        assert b"Agent Reasoning Trace" in response.content
+
+
+# ---------------------------------------------------------------------------
+# GET /trace/view — content variant tests
+# ---------------------------------------------------------------------------
+
+def _make_view_trace(iteration_overrides: dict) -> list[dict]:
+    """Return a minimal 2-entry trace (baseline + 1 iteration) for targeted tests."""
+    baseline = {
+        "iteration": 0,
+        "status": "baseline",
+        "auc": 0.70,
+        "primary_metric": 0.70,
+        "secondary_metric": 0.62,
+        "task_type": "classification",
+        "features_used": ["feat_a"],
+    }
+    iteration = {
+        "iteration": 1,
+        "status": "completed",
+        "hypothesis": "test hypothesis",
+        "feature_name": "feat_new",
+        "transformation_code": "df['feat_new'] = df['feat_a'] * 2",
+        "auc_before": 0.70,
+        "auc_after": 0.72,
+        "auc_delta": 0.02,
+        "shap_summary": {
+            "ranked_features": [{"feature_name": "feat_new", "mean_abs_shap": 0.12, "rank": 1}],
+            "top_3_summary": "feat_new (0.120)",
+        },
+        "decision": "kept",
+        "error_message": None,
+    }
+    iteration.update(iteration_overrides)
+    return [baseline, iteration]
+
+
+class TestTraceViewContentVariants:
+    def test_regression_trace_renders_rmse_not_auc(self, client, tmp_path):
+        trace = _make_view_trace({})
+        trace[0]["task_type"] = "regression"
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"RMSE" in response.content
+        # "AUC" must not appear as a metric label (check the metric row label)
+        assert b"AUC:</strong>" not in response.content
+
+    def test_discarded_decision_renders_word_discarded(self, client, tmp_path):
+        trace = _make_view_trace({"decision": "discarded", "auc_delta": -0.01, "auc_after": 0.69})
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"discarded" in response.content
+
+    def test_error_decision_renders_word_error(self, client, tmp_path):
+        trace = _make_view_trace({"decision": "error", "status": "failed", "error_message": "exec failed"})
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"error" in response.content
+
+    def test_error_message_renders_in_html(self, client, tmp_path):
+        trace = _make_view_trace({
+            "decision": "error",
+            "status": "failed",
+            "error_message": "sandbox blocked import os",
+        })
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"sandbox blocked import os" in response.content
+
+    def test_empty_top3_summary_does_not_render_shap_box(self, client, tmp_path):
+        trace = _make_view_trace({
+            "shap_summary": {
+                "ranked_features": [],
+                "top_3_summary": "",
+            },
+        })
+        trace_file = tmp_path / "trace.json"
+        trace_file.write_text(json.dumps(trace))
+        with patch("api.main.TRACE_PATH", trace_file):
+            response = client.get("/trace/view")
+        assert b"SHAP" not in response.content

@@ -1,11 +1,37 @@
-from pydantic import BaseModel, field_validator
+from enum import Enum
+
+from pydantic import BaseModel, field_validator, model_validator
+
+
+class TaskType(str, Enum):
+    classification = "classification"
+    regression = "regression"
 
 
 class EvaluationResult(BaseModel):
-    auc: float
-    f1: float
+    primary_metric: float
+    secondary_metric: float
     shap_values: dict[str, float]
     feature_names: list[str]
+    task_type: TaskType = TaskType.classification
+
+    @model_validator(mode="before")
+    @classmethod
+    def _remap_legacy_fields(cls, data):
+        if isinstance(data, dict):
+            if "auc" in data and "primary_metric" not in data:
+                data["primary_metric"] = data.pop("auc")
+            if "f1" in data and "secondary_metric" not in data:
+                data["secondary_metric"] = data.pop("f1")
+        return data
+
+    @property
+    def auc(self) -> float:
+        return self.primary_metric
+
+    @property
+    def f1(self) -> float:
+        return self.secondary_metric
 
 
 class DatasetProfile(BaseModel):
@@ -50,10 +76,29 @@ class IterationRecord(BaseModel):
 
 
 class AgentTrace(BaseModel):
-    baseline_auc: float
+    baseline_metric: float
     iterations: list["IterationRecord"]
     final_feature_set: list[str]
-    final_auc: float
+    final_metric: float
+    task_type: TaskType = TaskType.classification
+
+    @model_validator(mode="before")
+    @classmethod
+    def _remap_legacy_fields(cls, data):
+        if isinstance(data, dict):
+            if "baseline_auc" in data and "baseline_metric" not in data:
+                data["baseline_metric"] = data.pop("baseline_auc")
+            if "final_auc" in data and "final_metric" not in data:
+                data["final_metric"] = data.pop("final_auc")
+        return data
+
+    @property
+    def baseline_auc(self) -> float:
+        return self.baseline_metric
+
+    @property
+    def final_auc(self) -> float:
+        return self.final_metric
 
 
 class FeatureCandidate(BaseModel):

@@ -6,6 +6,7 @@ from tools.schemas import (
     IterationRecord,
     ReasoningOutput,
     ShapSummary,
+    TaskType,
 )
 
 SYSTEM_PROMPT = """\
@@ -127,10 +128,25 @@ class LLMReasoner:
         shap_summary: ShapSummary,
         iteration_history: list[IterationRecord],
         current_features: list[str],
+        task_type: TaskType = TaskType.classification,
     ) -> ReasoningOutput:
+        if task_type == TaskType.regression:
+            task_note = (
+                "\nTask type: regression. "
+                "Primary metric: RMSE (lower is better). "
+                "Propose features that reduce prediction error."
+            )
+        else:
+            task_note = (
+                "\nTask type: classification. "
+                "Primary metric: AUC (higher is better). "
+                "Propose features that improve class discrimination."
+            )
+        system = SYSTEM_PROMPT + task_note
+
         user_prompt = _build_user_prompt(profile, shap_summary, iteration_history, current_features)
 
-        raw = self._client.complete(SYSTEM_PROMPT, user_prompt)
+        raw = self._client.complete(system, user_prompt)
 
         try:
             data = json.loads(raw)

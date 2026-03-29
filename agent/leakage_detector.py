@@ -1,8 +1,8 @@
 import pandas as pd
 from scipy import stats
-from sklearn.feature_selection import mutual_info_classif
+from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 
-from tools.schemas import LeakageResult
+from tools.schemas import LeakageResult, TaskType
 
 _CORR_THRESHOLD = 0.95
 _MI_THRESHOLD = 0.9
@@ -15,6 +15,7 @@ class LeakageDetector:
         target_series: pd.Series,
         feature_name: str,
         target_col: str,
+        task_type: TaskType = TaskType.classification,
     ) -> LeakageResult:
         # Check 1: feature name contains target column name
         if target_col.lower() in feature_name.lower():
@@ -43,7 +44,10 @@ class LeakageDetector:
         # Check 3: Mutual information > 0.9
         try:
             X = feature_series.values.reshape(-1, 1)
-            mi = mutual_info_classif(X, target_series, random_state=42)[0]
+            if task_type == TaskType.regression:
+                mi = mutual_info_regression(X, target_series, random_state=42)[0]
+            else:
+                mi = mutual_info_classif(X, target_series, random_state=42)[0]
             if mi > _MI_THRESHOLD:
                 return LeakageResult(
                     is_leaking=True,
