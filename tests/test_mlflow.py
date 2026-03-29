@@ -361,20 +361,37 @@ class TestMLflowErrorIterationPath:
 # ---------------------------------------------------------------------------
 
 class TestMLflowCreatesArtifacts:
-    def test_mlruns_directory_created(self, tmp_path, monkeypatch):
+    # Marked e2e: requires real mlflow, real filesystem,
+    # and clean global mlflow state. Run with:
+    # pytest tests/test_mlflow.py -m e2e -v
+    @pytest.mark.e2e
+    def test_mlruns_directory_created(self, tmp_path):
         """A successful loop run with real MLflow must create the mlruns/ directory."""
+        from unittest.mock import MagicMock
+
         real_mlflow = pytest.importorskip(
             "mlflow",
             reason="mlflow not importable in this environment",
         )
-        # Change cwd so mlflow.set_tracking_uri("./mlruns") writes inside tmp_path
-        monkeypatch.chdir(tmp_path)
+        # Clean up any active run left by previous tests
+        real_mlflow.end_run()
+        real_mlflow.set_tracking_uri(str(tmp_path / "mlruns"))
+
+        # Wrap real mlflow so loop.py's own set_tracking_uri("./mlruns") call
+        # cannot override the tmp_path URI we set above.
+        mlflow_wrapper = MagicMock(wraps=real_mlflow)
+        mlflow_wrapper.set_tracking_uri.side_effect = (
+            lambda uri: real_mlflow.set_tracking_uri(str(tmp_path / "mlruns"))
+        )
 
         patches = _build_tool_patches(tmp_path, _make_df())
-        # Inject the real mlflow module so loop.py uses it instead of None
-        patches["agent.loop.mlflow"] = real_mlflow
+        patches["agent.loop.mlflow"] = mlflow_wrapper
 
-        _run_with_patches(patches)
+        try:
+            _run_with_patches(patches)
+        finally:
+            real_mlflow.end_run()
+            real_mlflow.set_tracking_uri("./mlruns")
 
         assert (tmp_path / "mlruns").exists()
         assert (tmp_path / "mlruns").is_dir()

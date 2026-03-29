@@ -110,21 +110,33 @@ Source: EXECUTION_PLAN.md Session 5
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | GET /trace/view | Returns 200, content-type text/html | |
-| TC-2 | Trace with 2 iterations | HTML contains "Iteration 1" and "Iteration 2" | |
-| TC-3 | Kept feature | "kept" appears in green in HTML | |
-| TC-4 | Regression trace | Metric label shows "RMSE" not "AUC" | |
+| TC-1 | GET /trace/view | Returns 200, content-type text/html | PASS |
+| TC-2 | Trace with 2 iterations | HTML contains "Iteration 1" and "Iteration 2" | PASS |
+| TC-3 | Kept feature | "kept" appears in green in HTML | PASS |
+| TC-4 | Regression trace | Metric label shows "RMSE" not "AUC" | PASS |
 
 ### Prediction Statement
-
+TC-1: GET /trace/view will return HTTP 200 with content-type text/html
+TC-2: rendering a trace with 2 iterations will produce HTML containing the strings "Iteration 1" and "Iteration 2"
+TC-3: a kept feature in the trace will produce HTML containing the word "kept" styled in green
+TC-4: a trace with task_type="regression" will show "RMSE" as the metric label, not "AUC"
 
 ### CC Challenge Output
+- Regression task type shows RMSE: accepted — TC-4 directly missed, added test
+- discarded decision rendering: accepted — different CSS branch, added test
+- error decision rendering: accepted — different CSS branch, added test
+- error_message appears for failed iterations: accepted — conditional render, added test
+- SHAP box absent when top_3_summary empty: accepted — conditional omission, added test
+- lift value correctness: rejected — cosmetic, not an invariant
+- baseline auc fallback: rejected — backward compat, low priority
 
 
 ### Code Review
 Invariant touched: INV-05 (trace completeness reflected in view)
-- Confirm all trace entries rendered — no filtering in view
-- Confirm metric label switches based on task_type
+- All trace iterations rendered — no filtering confirmed in _render_trace_html
+- Metric label switches on task_type field — confirmed
+- Missing trace returns graceful fallback — confirmed, no 500
+- html.escape() applied to hypothesis, code, feature name — confirmed
 
 ### Scope Decisions
 
