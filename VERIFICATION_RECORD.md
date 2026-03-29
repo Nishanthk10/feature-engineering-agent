@@ -142,12 +142,12 @@ Invariant touched: INV-05 (trace completeness reflected in view)
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 
@@ -158,15 +158,24 @@ Source: EXECUTION_PLAN.md Session 5
 
 | Case | Scenario | Expected | Result |
 |------|----------|----------|--------|
-| TC-1 | README.md exists | All 8 sections present | |
-| TC-2 | Both run commands in README | Classification and regression examples present | |
-| TC-3 | MLflow UI command in README | mlflow ui command present | |
-| TC-4 | Judging criteria table | All 8 criteria listed | |
-
+| TC-1 | README.md exists | All 8 sections present | PASS |
+| TC-2 | Both run commands in README | Classification and regression examples present | PASS |
+| TC-3 | MLflow UI command in README | mlflow ui command present | PASS |
+| TC-4 | Judging criteria table | All 8 criteria listed | PASS |
 ### Prediction Statement
-
+TC-1: README.md will exist and contain all 8 required sections identified by ## headers
+TC-2: README will contain both classification and regression run command examples
+TC-3: README will contain the mlflow ui command
+TC-4: README will contain a judging criteria table listing all 8 criteria
 
 ### CC Challenge Output
+CC noted README has no executable code — no test cases to add.
+Factual accuracy checks performed manually:
+- MCP tool names match mcp_server.py — confirmed
+- CLI flags match run_agent.py — confirmed
+- API endpoints match api/main.py — confirmed
+- File paths exist on disk — confirmed
+No discrepancies found.
 
 
 ### Code Review
@@ -176,12 +185,12 @@ No invariants touched — documentation only.
 
 
 ### Verification Verdict
-[ ] All planned cases passed
-[ ] CC challenge reviewed
-[ ] Code review complete (if invariant-touching)
-[ ] Scope decisions documented
+[ Verified ] All planned cases passed
+[ Verified ] CC challenge reviewed
+[ Verified ] Code review complete (if invariant-touching)
+[ Verified ] Scope decisions documented
 
-**Status:**
+**Status:** Verified
 
 ---
 

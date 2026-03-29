@@ -13,7 +13,7 @@
 |---------|-----------|--------|--------|
 | 5.1 | Regression target support | Completed | 062bba5 |
 | 5.2 | MLflow integration | Completed | a8871bb |
-| 5.3 | Trace viewer endpoint | | |
+| 5.3 | Trace viewer endpoint | Completed | c622041 |
 | 5.4 | README and architecture diagram | | |
 | 5.5 | End-to-end hardening | | |
 
@@ -27,6 +27,8 @@
 | 5.1 | Rejected 2 CC Challenge cases: CLI forwarding, f1 alias | Covered in e2e or backward compat shim |
 | 5.2 | Accepted 3 CC Challenge cases: step 4 raises, nested raises with active parent, error path | Different try/except blocks all need coverage per INV-11 |
 | 5.2 | Rejected 2 CC Challenge cases: metric correctness, hypothesis truncation | Not invariants, cosmetic |
+| 5.3 | Accepted 5 CC Challenge cases: RMSE label, discarded/error rendering, error_message, SHAP absent | Different conditional branches all need coverage |
+| 5.3 | Rejected 2 CC Challenge cases: lift value, baseline fallback | Cosmetic or backward compat |
 
 
 ---
