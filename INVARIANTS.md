@@ -113,14 +113,3 @@
 - No tool or class may modify `TaskType` after it is set
 - `AgentTrace` stores `task_type` as a field — mismatch between stored and active task type is a fatal error
 
----
-
-## INV-11: MLflow logging is non-blocking
-**Condition:** A failure in any MLflow logging call must never stop or crash the agent run. The agent continues and completes normally if MLflow is unavailable or throws an exception.
-**Category:** Operational
-**Why this matters:** MLflow is an additive observability layer. The JSON trace is the source of truth. If MLflow logging causes the agent to fail, the system has introduced a new critical dependency that was never part of the core loop — and the demo breaks for an entirely avoidable reason.
-**Enforcement points:**
-- Every `mlflow.*` call in the codebase is wrapped in `try/except Exception`
-- On MLflow failure: log a warning to console (`print(f"[MLflow warning]: {e}")`) and continue
-- No `mlflow.*` call appears outside a try/except block — this is a code review requirement for every task that touches MLflow
-- Agent exit status is determined by the JSON trace and EvaluationResult only — never by MLflow state

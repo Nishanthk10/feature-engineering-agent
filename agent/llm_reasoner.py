@@ -1,6 +1,9 @@
 import json
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
+from agent.logger import get_logger
 from tools.schemas import (
     DatasetProfile,
     IterationRecord,
@@ -8,6 +11,10 @@ from tools.schemas import (
     ShapSummary,
     TaskType,
 )
+
+logger = get_logger("agent.llm")
+
+LLM_TIMEOUT = 60  # seconds
 
 SYSTEM_PROMPT = """\
 You are an expert data scientist specialising in feature engineering.
@@ -64,14 +71,14 @@ Propose the single most promising next feature to engineer.\
 
 
 class LLMClient:
-    def complete(self, system: str, user: str) -> str:
+    def _call_provider(self, system: str, user: str) -> str:
         provider = os.environ.get("LLM_PROVIDER", "gemini")
 
         if provider == "gemini":
             from google import genai
             client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
             response = client.models.generate_content(
-                model="gemini-3.1-flash-lite-preview",
+                model="gemini-2.5-flash",
                 contents=system + "\n\n" + user,
             )
             return response.text
@@ -117,6 +124,31 @@ class LLMClient:
                 "Supported: gemini, openai, anthropic, huggingface"
             )
 
+    def complete(self, system: str, user: str) -> str:
+        provider = os.environ.get("LLM_PROVIDER", "gemini")
+        logger.debug(f"LLM call starting (timeout={LLM_TIMEOUT}s, provider={provider})")
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):  # up to 3 attempts
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(self._call_provider, system, user)
+                try:
+                    result = future.result(timeout=LLM_TIMEOUT)
+                    logger.debug(f"LLM call returned successfully (attempt {attempt})")
+                    return result
+                except FuturesTimeout:
+                    future.cancel()
+                    raise TimeoutError(f"LLM API call timed out after {LLM_TIMEOUT}s")
+                except Exception as exc:
+                    last_exc = exc
+                    err_str = str(exc)
+                    if attempt < 3 and ("503" in err_str or "429" in err_str or "UNAVAILABLE" in err_str):
+                        wait = 5 * attempt
+                        logger.warning(f"LLM attempt {attempt} failed ({err_str[:120]}), retrying in {wait}s...")
+                        time.sleep(wait)
+                    else:
+                        raise
+        raise last_exc  # type: ignore
+
 
 class LLMReasoner:
     def __init__(self) -> None:
@@ -146,13 +178,28 @@ class LLMReasoner:
 
         user_prompt = _build_user_prompt(profile, shap_summary, iteration_history, current_features)
 
-        raw = self._client.complete(system, user_prompt)
+        try:
+            raw = self._client.complete(system, user_prompt)
+        except Exception as e:
+            logger.error(f"LLM API call failed: {e}", exc_info=True)
+            raise
+
+        cleaned = raw.strip()
+        if cleaned.startswith("```"):
+            # Strip markdown code fences: ```json ... ``` or ``` ... ```
+            cleaned = cleaned.split("\n", 1)[-1]  # drop the opening fence line
+            if cleaned.endswith("```"):
+                cleaned = cleaned[: cleaned.rfind("```")]
+            cleaned = cleaned.strip()
 
         try:
-            data = json.loads(raw)
+            data = json.loads(cleaned)
         except json.JSONDecodeError as exc:
+            logger.error(f"LLM returned invalid JSON. Raw response: {raw[:500]}", exc_info=True)
             raise ValueError(
                 f"LLM returned invalid JSON: {exc}\nRaw response:\n{raw}"
             ) from exc
 
-        return ReasoningOutput.model_validate(data)
+        output = ReasoningOutput.model_validate(data)
+        logger.info(f"Hypothesis: {output.hypothesis[:120]}...")
+        return output

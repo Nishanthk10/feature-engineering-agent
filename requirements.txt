@@ -11,7 +11,6 @@ pydantic
 fastmcp
 pytest
 python-multipart
-mlflow
 python-dotenv
 google-genai
 openai

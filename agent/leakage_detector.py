@@ -2,7 +2,10 @@ import pandas as pd
 from scipy import stats
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 
+from agent.logger import get_logger
 from tools.schemas import LeakageResult, TaskType
+
+logger = get_logger("agent.leakage")
 
 _CORR_THRESHOLD = 0.95
 _MI_THRESHOLD = 0.9
@@ -19,25 +22,29 @@ class LeakageDetector:
     ) -> LeakageResult:
         # Check 1: feature name contains target column name
         if target_col.lower() in feature_name.lower():
-            return LeakageResult(
+            result = LeakageResult(
                 is_leaking=True,
                 reason=(
                     f"Feature name '{feature_name}' contains "
                     f"target column name '{target_col}'."
                 ),
             )
+            logger.debug(f"Leakage check '{feature_name}': True — {result.reason}")
+            return result
 
         # Check 2: Pearson correlation abs > 0.95
         try:
             corr, _ = stats.pearsonr(feature_series, target_series)
             if abs(corr) > _CORR_THRESHOLD:
-                return LeakageResult(
+                result = LeakageResult(
                     is_leaking=True,
                     reason=(
                         f"Pearson correlation with target is {corr:.4f} "
                         f"(threshold: {_CORR_THRESHOLD})."
                     ),
                 )
+                logger.debug(f"Leakage check '{feature_name}': True — {result.reason}")
+                return result
         except Exception:
             pass
 
@@ -49,14 +56,18 @@ class LeakageDetector:
             else:
                 mi = mutual_info_classif(X, target_series, random_state=42)[0]
             if mi > _MI_THRESHOLD:
-                return LeakageResult(
+                result = LeakageResult(
                     is_leaking=True,
                     reason=(
                         f"Mutual information with target is {mi:.4f} "
                         f"(threshold: {_MI_THRESHOLD})."
                     ),
                 )
+                logger.debug(f"Leakage check '{feature_name}': True — {result.reason}")
+                return result
         except Exception:
             pass
 
-        return LeakageResult(is_leaking=False, reason=None)
+        result = LeakageResult(is_leaking=False, reason=None)
+        logger.debug(f"Leakage check '{feature_name}': {result.is_leaking} — passed all checks")
+        return result

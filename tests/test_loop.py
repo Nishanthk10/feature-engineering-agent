@@ -172,14 +172,15 @@ class TestBaselineWrittenFirst:
 
 class TestEarlyStop:
     def test_early_stop_after_2_consecutive_small_deltas(self, tmp_path):
-        # Baseline=0.70; iteration 1: delta=0.0005 (<0.001); iteration 2: delta=0.0003 (<0.001) → stop
-        # Provide extra reasoning/execute in case loop doesn't stop (safety net)
+        # Baseline=0.700; iter 1: AUC=0.6999 → delta=-0.0001 → discarded (count=1);
+        # iter 2: AUC=0.6998 → delta=-0.0002 → discarded (count=2) → early stop.
+        # Negative deltas ensure decision="discarded", triggering the new early-stop rule.
         reasoning = [_make_reasoning(i) for i in range(1, 6)]
         df = _make_df()
         exec_results = [_make_execute_success(df, f"new_feat_{i}") for i in range(1, 6)]
         patches = _patch_all(
             tmp_path,
-            eval_aucs=[0.700, 0.7005, 0.7008, 0.720, 0.730, 0.740],
+            eval_aucs=[0.700, 0.6999, 0.6998, 0.680, 0.670, 0.660],
             reasoning_outputs=reasoning,
             execute_results=exec_results,
         )
@@ -189,13 +190,16 @@ class TestEarlyStop:
         assert len(result.iterations) == 2
 
     def test_early_stop_resets_on_large_delta(self, tmp_path):
-        # delta small, delta large (resets counter), delta small, delta small → stops at iter 4
+        # iter 1: delta=-0.0001 → discarded (count=1);
+        # iter 2: delta=+0.050  → KEPT (count resets to 0, current_metric=0.750);
+        # iter 3: delta=-0.0001 → discarded (count=1);
+        # iter 4: delta=-0.0002 → discarded (count=2) → early stop.
         reasoning = [_make_reasoning(i) for i in range(1, 6)]
         df = _make_df()
         exec_results = [_make_execute_success(df, f"new_feat_{i}") for i in range(1, 6)]
         patches = _patch_all(
             tmp_path,
-            eval_aucs=[0.700, 0.7005, 0.720, 0.7205, 0.7208, 0.730],
+            eval_aucs=[0.700, 0.6999, 0.750, 0.7499, 0.7498, 0.740],
             reasoning_outputs=reasoning,
             execute_results=exec_results,
         )
@@ -203,6 +207,23 @@ class TestEarlyStop:
             result = AgentLoop().run("fake.csv", "target", max_iter=5)
 
         assert len(result.iterations) == 4
+
+    def test_kept_with_small_delta_does_not_trigger_early_stop(self, tmp_path):
+        # All 3 iterations are KEPT with small positive delta — counter must reset each time,
+        # so the agent runs all max_iter iterations without early stopping.
+        reasoning = [_make_reasoning(i) for i in range(1, 4)]
+        df = _make_df()
+        exec_results = [_make_execute_success(df, f"new_feat_{i}") for i in range(1, 4)]
+        patches = _patch_all(
+            tmp_path,
+            eval_aucs=[0.700, 0.7005, 0.7008, 0.7011],
+            reasoning_outputs=reasoning,
+            execute_results=exec_results,
+        )
+        with _apply_patches(patches):
+            result = AgentLoop().run("fake.csv", "target", max_iter=3)
+
+        assert len(result.iterations) == 3
 
 
 class TestTraceEntryCount:

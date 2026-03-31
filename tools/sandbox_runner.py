@@ -1,18 +1,18 @@
 """
 Sandbox runner — executed as a subprocess only, never imported by the main process.
 
-Usage: python sandbox_runner.py <base64-encoded-code>
-Exit 0: success, writes output.pkl
-Exit 1: any error, writes error message to stderr
+Protocol (stdin/stdout):
+  stdin:  line 1 = base64-encoded pickled input DataFrame
+          line 2 = base64-encoded UTF-8 transformation code
+  stdout: base64-encoded pickled result dict {"df": ..., "new_columns": [...]}
+  stderr: error message on failure
+  exit 0: success
+  exit 1: any error
 """
 import ast
 import base64
 import pickle
 import sys
-import pathlib
-import tempfile
-
-SANDBOX_DIR = pathlib.Path(tempfile.gettempdir()) / "fe_sandbox"
 
 ALLOWED_TOP_MODULES = {"pandas", "numpy", "scipy", "sklearn", "math", "datetime"}
 
@@ -22,7 +22,6 @@ def check_imports(code: str) -> None:
     try:
         tree = ast.parse(code)
     except SyntaxError:
-        # SyntaxError will surface again on exec(); let it pass through here.
         return
 
     for node in ast.walk(tree):
@@ -39,24 +38,27 @@ def check_imports(code: str) -> None:
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: sandbox_runner.py <base64-encoded-code>", file=sys.stderr)
+    try:
+        lines = sys.stdin.read().splitlines()
+        if len(lines) < 2:
+            print("Expected 2 lines on stdin (encoded_df, encoded_code)", file=sys.stderr)
+            sys.exit(1)
+        encoded_df = lines[0].strip()
+        encoded_code = lines[1].strip()
+    except Exception as exc:
+        print(f"Failed to read stdin: {exc}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        code = base64.b64decode(sys.argv[1]).decode("utf-8")
+        df = pickle.loads(base64.b64decode(encoded_df))
     except Exception as exc:
-        print(f"Failed to decode code argument: {exc}", file=sys.stderr)
+        print(f"Failed to deserialize input DataFrame: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    input_path = SANDBOX_DIR / "input.pkl"
-    output_path = SANDBOX_DIR / "output.pkl"
-
     try:
-        with open(input_path, "rb") as fh:
-            df = pickle.load(fh)
+        code = base64.b64decode(encoded_code).decode("utf-8")
     except Exception as exc:
-        print(f"Failed to load input.pkl: {exc}", file=sys.stderr)
+        print(f"Failed to decode transformation code: {exc}", file=sys.stderr)
         sys.exit(1)
 
     original_cols = set(df.columns)
@@ -72,10 +74,10 @@ def main() -> None:
 
     try:
         result = {"df": df, "new_columns": new_cols}
-        with open(output_path, "wb") as fh:
-            pickle.dump(result, fh)
+        output = base64.b64encode(pickle.dumps(result)).decode("ascii")
+        print(output)
     except Exception as exc:
-        print(f"Failed to write output.pkl: {exc}", file=sys.stderr)
+        print(f"Failed to serialize output: {exc}", file=sys.stderr)
         sys.exit(1)
 
     sys.exit(0)

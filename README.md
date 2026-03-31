@@ -20,7 +20,7 @@ The system is composed of five layers: data ingestion (`DatasetLoader`), baselin
          |
    [DatasetLoader + TaskType detection]
          |
-   [Baseline Eval] ──> trace.json + MLflow
+   [Baseline Eval] ──> trace.json
          |
    ┌─────▼──────────────────────────────┐
    │         Agent Loop (LLM)           │
@@ -38,7 +38,7 @@ The system is composed of five layers: data ingestion (`DatasetLoader`), baselin
          |
    [OutputFormatter]
          |
-   [final_features.csv + trace.json + MLflow UI]
+   [final_features.csv + trace.json]
 ```
 
 ## Setup
@@ -65,10 +65,6 @@ python run_agent.py --dataset data/synthetic_regression.csv --target price --tas
 uvicorn api.main:app --port 8000
 # open http://localhost:8000
 
-# MLflow UI
-mlflow ui
-# open http://localhost:5000
-
 # Benchmark
 python run_benchmark.py
 ```
@@ -86,9 +82,7 @@ python run_benchmark.py
 
 `outputs/trace.json` is a JSON array written atomically after every iteration. Each entry is either a baseline record (`"status": "baseline"`) containing the task type and raw metric, or an iteration record (`"status": "completed"` or `"failed"`) containing the hypothesis, transformation code, metric before/after, SHAP summary, keep/discard decision, and any error message.
 
-The `/trace/view` endpoint (served by the FastAPI app at `http://localhost:8000/trace/view`) renders the live trace as a styled HTML page — useful for monitoring a run in progress without leaving the browser.
-
-MLflow experiment data is written to `./mlruns/` during each run. Launch `mlflow ui` and open `http://localhost:5000` to browse parent runs, nested per-iteration child runs, logged metrics (`metric_before`, `metric_after`, `metric_delta`), and artefacts (transformation code files).
+The `/trace/view` endpoint (served by the FastAPI app at `http://localhost:8000/trace/view`) renders the live trace as a styled HTML page — useful for monitoring a run in progress without leaving the browser. Live logs are available at `/logs`.
 
 ## Judging Criteria Checklist
 
@@ -100,5 +94,5 @@ MLflow experiment data is written to `./mlruns/` during each run. Launch `mlflow
 | **Guardrails** | `agent/leakage_detector.py` (mutual information check), `tools/sandbox_runner.py` (import whitelist, subprocess isolation) |
 | **MCP tools** | `tools/mcp_server.py` — four tools with stable schemas defined in `tools/schemas.py` (INV-08) |
 | **Evals** | `tools/evaluate.py` — deterministic LightGBM eval (random_state=42); `run_benchmark.py` — multi-dataset benchmark with lift reporting |
-| **Observability** | `outputs/trace.json` (atomic writes, INV-05); `GET /trace/view` (live HTML viewer); `mlruns/` (MLflow experiment tracking) |
+| **Observability** | `outputs/trace.json` (atomic writes, INV-05); `GET /trace/view` (live HTML viewer); `GET /logs` (live log viewer) |
 | **Deployment** | `api/main.py` — FastAPI app with `POST /run`, `GET /status`, `GET /trace`, `GET /trace/view`; `static/index.html` — zero-dependency upload UI |

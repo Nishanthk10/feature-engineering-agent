@@ -3,14 +3,19 @@ import json
 import pathlib
 import tempfile
 import threading
+import traceback
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 
 load_dotenv()
 
+from agent.logger import get_logger
 from agent.loop import AgentLoop
+from tools.schemas import TaskType
+
+logger = get_logger("api")
 
 app = FastAPI(title="Feature Engineering Agent")
 
@@ -22,12 +27,25 @@ _state: dict = {"status": "idle", "iteration": 0}
 _state_lock = threading.Lock()
 
 
-def _run_agent(dataset_path: str, target_col: str, max_iter: int) -> None:
+def _run_agent(dataset_path: str, target_col: str, max_iter: int,
+               task_type: str | None = None) -> None:
+    # 1. Mark running immediately — before any other operation
     with _state_lock:
         _state["status"] = "running"
         _state["iteration"] = 0
 
+    # 2. Clear stale trace so the UI does not show results from a previous run
     try:
+        if TRACE_PATH.exists():
+            TRACE_PATH.unlink()
+    except OSError as e:
+        print(f"[_run_agent warning] could not delete stale trace: {e}")
+
+    try:
+        # 3. Confirm uploaded file exists before handing off to AgentLoop
+        if not pathlib.Path(dataset_path).exists():
+            print(f"[_run_agent error] uploaded file not found: {dataset_path}")
+            raise FileNotFoundError(f"uploaded file not found: {dataset_path}")
         loop = AgentLoop()
 
         # Monkey-patch the loop's _write_trace to track iteration count
@@ -55,12 +73,15 @@ def _run_agent(dataset_path: str, target_col: str, max_iter: int) -> None:
                 dataset_path=dataset_path,
                 target_col=target_col,
                 max_iter=max_iter,
+                task_type=TaskType(task_type) if task_type is not None else None,
             )
         finally:
             loop_module._write_trace = original_module_write
 
-    except Exception:
-        pass
+    except BaseException as e:
+        print(f"[_run_agent error] agent raised {type(e).__name__}: {e}")
+        traceback.print_exc()
+        logger.error(f"Agent run failed ({type(e).__name__}): {e}", exc_info=True)
     finally:
         with _state_lock:
             _state["status"] = "complete"
@@ -71,14 +92,17 @@ async def run_agent(
     file: UploadFile = File(...),
     target_col: str = Form(...),
     max_iter: int = Form(5),
+    task_type: str = Form("auto"),
 ):
     UPLOAD_PATH.parent.mkdir(parents=True, exist_ok=True)
     contents = await file.read()
     UPLOAD_PATH.write_bytes(contents)
 
+    resolved_task_type = None if task_type == "auto" else task_type
+
     thread = threading.Thread(
         target=_run_agent,
-        args=(str(UPLOAD_PATH), target_col, max_iter),
+        args=(str(UPLOAD_PATH), target_col, max_iter, resolved_task_type),
         daemon=True,
     )
     thread.start()
@@ -238,6 +262,15 @@ def view_trace():
         return HTMLResponse(_render_trace_html(data))
     except (json.JSONDecodeError, OSError):
         return HTMLResponse(_render_trace_html([]))
+
+
+@app.get("/logs")
+def get_logs():
+    log_path = pathlib.Path("outputs/agent.log")
+    if not log_path.exists():
+        return PlainTextResponse("No logs yet.")
+    lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    return PlainTextResponse("\n".join(lines[-100:]))
 
 
 @app.get("/")

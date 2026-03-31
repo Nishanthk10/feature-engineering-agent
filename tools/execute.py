@@ -1,41 +1,48 @@
 import base64
-import os
-import pathlib
 import pickle
 import subprocess
 import sys
-import tempfile
+import pathlib
 
 import pandas as pd
 
+from agent.logger import get_logger
 from tools.schemas import ExecuteResult
 
-SANDBOX_DIR = pathlib.Path(tempfile.gettempdir()) / "fe_sandbox"
+logger = get_logger("tools.execute")
+
 SANDBOX_RUNNER = pathlib.Path(__file__).parent / "sandbox_runner.py"
 TIMEOUT_SECONDS = 30
 
 
 class ExecuteTool:
     def execute(self, df: pd.DataFrame, code: str) -> ExecuteResult:
-        os.makedirs(SANDBOX_DIR, exist_ok=True)
+        logger.debug(f"Sandbox: execute() entered ({df.shape[0]} rows, {df.shape[1]} cols)")
 
-        input_path = SANDBOX_DIR / "input.pkl"
-        output_path = SANDBOX_DIR / "output.pkl"
+        # Serialize DataFrame and code as base64 and pass via stdin/stdout.
+        # This avoids all temp-file I/O (and Windows Defender locking issues).
+        try:
+            encoded_df = base64.b64encode(pickle.dumps(df)).decode("ascii")
+        except Exception as exc:
+            logger.error(f"Sandbox: failed to serialize DataFrame: {exc}", exc_info=True)
+            return ExecuteResult(
+                success=False, new_columns=[], error_message=f"Failed to serialize input: {exc}", output_df=None
+            )
 
-        with open(input_path, "wb") as fh:
-            pickle.dump(df, fh)
-
-        # Encode code as base64 to avoid shell-escaping issues on all platforms.
         encoded_code = base64.b64encode(code.encode("utf-8")).decode("ascii")
+        stdin_payload = encoded_df + "\n" + encoded_code
+        logger.debug(f"Sandbox: launching subprocess, code length={len(code)}")
 
         try:
             proc = subprocess.run(
-                [sys.executable, str(SANDBOX_RUNNER), encoded_code],
+                [sys.executable, str(SANDBOX_RUNNER)],
+                input=stdin_payload,
                 capture_output=True,
                 text=True,
                 timeout=TIMEOUT_SECONDS,
             )
         except subprocess.TimeoutExpired:
+            logger.error(f"Sandbox timed out after {TIMEOUT_SECONDS} seconds")
             return ExecuteResult(
                 success=False,
                 new_columns=[],
@@ -45,6 +52,7 @@ class ExecuteTool:
 
         if proc.returncode != 0:
             error_msg = proc.stderr.strip() or "Sandbox exited with non-zero status"
+            logger.warning(f"Sandbox failed (exit {proc.returncode}): {error_msg}")
             return ExecuteResult(
                 success=False,
                 new_columns=[],
@@ -53,18 +61,19 @@ class ExecuteTool:
             )
 
         try:
-            with open(output_path, "rb") as fh:
-                result = pickle.load(fh)
+            result = pickle.loads(base64.b64decode(proc.stdout.strip()))
             output_df: pd.DataFrame = result["df"]
             new_columns: list[str] = result["new_columns"]
         except Exception as exc:
+            logger.error(f"Sandbox: failed to deserialize output: {exc}", exc_info=True)
             return ExecuteResult(
                 success=False,
                 new_columns=[],
-                error_message=f"Failed to read sandbox output: {exc}",
+                error_message=f"Failed to deserialize sandbox output: {exc}",
                 output_df=None,
             )
 
+        logger.debug(f"Sandbox: success, new_columns={new_columns}")
         return ExecuteResult(
             success=True,
             new_columns=new_columns,

@@ -5,79 +5,480 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Feature Engineering Agent</title>
   <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 16px; }
-    h1 { font-size: 1.5rem; }
-    label { display: block; margin-top: 12px; font-weight: bold; }
-    input[type="text"], input[type="number"] { width: 100%; padding: 6px; box-sizing: border-box; }
-    input[type="file"] { margin-top: 4px; }
-    button { margin-top: 16px; padding: 8px 20px; font-size: 1rem; cursor: pointer; }
-    #status-div { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; display: none; }
-    #results-div { margin-top: 24px; display: none; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background: #e8e8e8; }
-    #reasoning-section { margin-top: 28px; display: none; }
-    #reasoning-section h2 { font-size: 1.2rem; margin-bottom: 8px; }
-    .iter-card {
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px 14px;
-      margin-bottom: 10px;
-      background: #fafafa;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #f4f5f7;
+      color: #1a1a2e;
+      min-height: 100vh;
+      padding: 40px 16px 64px;
     }
-    .iter-card .iter-title { font-weight: bold; margin-bottom: 4px; }
-    .iter-card .iter-row { margin: 2px 0; font-size: 0.9rem; }
-    .decision-kept   { color: #2a7a2a; font-weight: bold; }
-    .decision-discarded { color: #b85c00; font-weight: bold; }
-    .decision-error  { color: #b00020; font-weight: bold; }
+
+    .page-wrap {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .site-header {
+      padding-bottom: 20px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid #dde1e7;
+    }
+    .site-header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .site-header p {
+      margin-top: 4px;
+      font-size: 0.93rem;
+      color: #6b7280;
+    }
+
+    /* ── Cards ───────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border: 1px solid #e2e5ea;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Form ────────────────────────────────────────────────────── */
+    .form-group { margin-top: 16px; }
+    .form-group:first-child { margin-top: 0; }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #111827;
+      background: #fff;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #4f6ef7;
+      box-shadow: 0 0 0 3px rgba(79,110,247,.12);
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 6px 0;
+      font-size: 0.9rem;
+      color: #374151;
+      cursor: pointer;
+    }
+
+    .btn-run {
+      margin-top: 20px;
+      width: 100%;
+      padding: 11px;
+      background: #1a1a2e;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.97rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn-run:hover:not(:disabled) { background: #2d2d4e; }
+    .btn-run:active:not(:disabled) { transform: scale(.99); }
+    .btn-run:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* ── Status bar ──────────────────────────────────────────────── */
+    #status-div {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: #fff;
+      border: 1px solid #e2e5ea;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.88rem;
+      color: #374151;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+    .status-badge.idle     { background: #e5e7eb; color: #6b7280; }
+    .status-badge.running  { background: #dbeafe; color: #1d4ed8; }
+    .status-badge.complete { background: #dcfce7; color: #15803d; }
+    .status-badge.error    { background: #fee2e2; color: #b91c1c; }
+
+    .pulse-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .4; transform: scale(.7); }
+    }
+
+    /* ── Section headings ────────────────────────────────────────── */
+    .section-heading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: #111827;
+    }
+    .count-badge {
+      background: #e0e7ff;
+      color: #3730a3;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+
+    /* ── Baseline SHAP section ───────────────────────────────────── */
+    #baseline-shap-section { display: none; margin-bottom: 20px; }
+
+    .shap-subheading {
+      font-size: 0.82rem;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+
+    .shap-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-size: 0.85rem;
+    }
+    .shap-feat-name {
+      width: 160px;
+      min-width: 160px;
+      font-weight: 600;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shap-bar-track {
+      flex: 1;
+      background: #e9ecef;
+      border-radius: 4px;
+      height: 10px;
+      overflow: hidden;
+    }
+    .shap-bar-fill {
+      height: 100%;
+      background: #4A90D9;
+      border-radius: 4px;
+      transition: width .4s ease;
+    }
+    .shap-val {
+      width: 60px;
+      min-width: 60px;
+      text-align: right;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.8rem;
+      color: #374151;
+    }
+
+    /* ── Iteration cards ─────────────────────────────────────────── */
+    #reasoning-section { display: none; margin-bottom: 20px; }
+
+    .iter-card {
+      background: #fff;
+      border: 1px solid #e2e5ea;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      animation: fadeIn .3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .iter-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .iter-title { font-weight: 700; font-size: 0.95rem; color: #111827; }
+
+    .decision-badge {
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+    .decision-kept      { background: #dcfce7; color: #15803d; }
+    .decision-discarded { background: #fef3c7; color: #92400e; }
+    .decision-error     { background: #fee2e2; color: #b91c1c; }
+
+    .iter-row { margin: 8px 0; font-size: 0.88rem; }
+    .iter-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #6b7280;
+      margin-bottom: 3px;
+    }
+
+    .hypothesis-box {
+      background: #f9fafb;
+      border-left: 3px solid #d1d5db;
+      padding: 7px 10px;
+      border-radius: 0 4px 4px 0;
+      font-size: 0.88rem;
+      font-style: italic;
+      color: #374151;
+    }
+
+    /* Code block */
+    .code-wrap {
+      position: relative;
+      margin: 8px 0;
+    }
+    .code-badge {
+      position: absolute;
+      top: 7px; right: 10px;
+      background: #3d3d3d;
+      color: #9ca3af;
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+    .code-wrap pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      padding: 10px 14px;
+      padding-right: 52px; /* room for badge */
+      border-radius: 6px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .metric-row {
+      font-size: 0.88rem;
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+    .delta-good { color: #15803d; font-weight: 600; }
+    .delta-bad  { color: #b91c1c; font-weight: 600; }
+
+    /* ── Results section ─────────────────────────────────────────── */
+    #results-div { display: none; }
+
+    .metric-boxes {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .metric-box {
+      flex: 1;
+      background: #f9fafb;
+      border: 1px solid #e2e5ea;
+      border-radius: 8px;
+      padding: 16px 18px;
+      text-align: center;
+    }
+    .metric-box .metric-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    .metric-box .metric-value {
+      font-size: 2rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #111827;
+    }
+    .lift-line {
+      margin-top: 16px;
+      font-size: 0.9rem;
+      color: #374151;
+    }
+    .lift-value { color: #15803d; font-weight: 700; }
+
+    /* Features table */
+    .results-heading {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #111827;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    thead th {
+      background: #f3f4f6;
+      padding: 8px 10px;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: #6b7280;
+      border-bottom: 1px solid #e2e5ea;
+    }
+    tbody tr:nth-child(even) { background: #f9fafb; }
+    tbody td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    tbody td:first-child { font-weight: 600; color: #111827; }
+    tbody td:last-child  { text-align: right; font-family: monospace; }
   </style>
 </head>
 <body>
-  <h1>Feature Engineering Agent</h1>
+  <div class="page-wrap">
 
-  <form id="run-form">
-    <label for="file">CSV Dataset</label>
-    <input type="file" id="file" name="file" accept=".csv" required />
+    <!-- Header -->
+    <header class="site-header">
+      <h1>Feature Engineering Agent</h1>
+      <p>Autonomous ML feature discovery powered by LLM reasoning</p>
+    </header>
 
-    <label for="target_col">Target Column Name</label>
-    <input type="text" id="target_col" name="target_col" placeholder="e.g. churn" required />
+    <!-- Form -->
+    <div class="card">
+      <form id="run-form">
+        <div class="form-group">
+          <label for="file">CSV Dataset</label>
+          <input type="file" id="file" name="file" accept=".csv" required />
+        </div>
 
-    <label for="max_iter">Max Iterations</label>
-    <input type="number" id="max_iter" name="max_iter" value="5" min="1" max="10" />
+        <div class="form-group">
+          <label for="target_col">Target Column Name</label>
+          <input type="text" id="target_col" name="target_col" placeholder="e.g. churn" required />
+        </div>
 
-    <button type="submit" id="run-btn">Run Agent</button>
-  </form>
+        <div class="form-group">
+          <label for="task_type">Task type</label>
+          <select id="task_type" name="task_type">
+            <option value="auto">Auto-detect</option>
+            <option value="classification">Classification</option>
+            <option value="regression">Regression</option>
+          </select>
+        </div>
 
-  <div id="status-div">
-    <strong>Status:</strong> <span id="status-text">idle</span> &nbsp;|&nbsp;
-    <strong>Iteration:</strong> <span id="iteration-text">0</span>
-  </div>
+        <div class="form-group">
+          <label for="max_iter">Max Iterations</label>
+          <input type="number" id="max_iter" name="max_iter" value="5" min="1" max="10" />
+        </div>
 
-  <!-- Live reasoning log — shown while running and after completion -->
-  <div id="reasoning-section">
-    <h2>Live Agent Reasoning</h2>
-    <div id="reasoning-cards"></div>
-  </div>
+        <button type="submit" id="run-btn" class="btn-run">Run Agent</button>
+      </form>
+    </div>
 
-  <div id="results-div">
-    <h2>Results</h2>
-    <p>
-      <strong>Baseline AUC:</strong> <span id="baseline-auc">—</span> &nbsp;&nbsp;
-      <strong>Final AUC:</strong> <span id="final-auc">—</span>
-    </p>
-    <h3>Kept Features</h3>
-    <table id="features-table">
-      <thead>
-        <tr><th>Name</th><th>Hypothesis</th><th>SHAP Value</th></tr>
-      </thead>
-      <tbody id="features-body"></tbody>
-    </table>
-  </div>
+    <!-- Status bar -->
+    <div id="status-div">
+      <span id="status-badge" class="status-badge idle">
+        <span class="pulse-dot" id="pulse-dot" style="display:none"></span>
+        <span id="status-text">idle</span>
+      </span>
+      <span id="iter-label" style="display:none">
+        Iteration <strong id="iteration-text">0</strong>
+      </span>
+    </div>
+
+    <!-- Baseline SHAP importance -->
+    <div id="baseline-shap-section">
+      <div class="card">
+        <div class="section-heading">Baseline feature importance</div>
+        <p class="shap-subheading">Raw features ranked by SHAP value before any engineering</p>
+        <div id="shap-bars"></div>
+      </div>
+    </div>
+
+    <!-- Live reasoning -->
+    <div id="reasoning-section">
+      <div class="section-heading">
+        Live Agent Reasoning
+        <span class="count-badge" id="card-count">0</span>
+      </div>
+      <div id="reasoning-cards"></div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-div">
+      <div class="card">
+        <div class="section-heading">Results</div>
+        <div class="metric-boxes">
+          <div class="metric-box">
+            <div class="metric-label" id="baseline-label">Baseline AUC</div>
+            <div class="metric-value" id="baseline-auc">—</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label" id="final-label">Final AUC</div>
+            <div class="metric-value" id="final-auc">—</div>
+          </div>
+        </div>
+        <div class="lift-line" id="lift-line"></div>
+
+        <div class="results-heading" style="margin-top:20px">Kept Features</div>
+        <table id="features-table">
+          <thead>
+            <tr><th>Name</th><th>Hypothesis</th><th>SHAP Value</th></tr>
+          </thead>
+          <tbody id="features-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- .page-wrap -->
 
   <script>
     let statusPollInterval = null;
     let tracePollInterval = null;
     let renderedIterations = 0;   // tracks how many cards have been appended
+    let baselineShapRendered = false; // render baseline SHAP section only once
 
     document.getElementById('run-form').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -85,6 +486,7 @@
       const fileInput = document.getElementById('file');
       const targetCol = document.getElementById('target_col').value;
       const maxIter = document.getElementById('max_iter').value;
+      const taskType = document.getElementById('task_type').value;
 
       if (!fileInput.files[0]) return;
 
@@ -92,21 +494,27 @@
       formData.append('file', fileInput.files[0]);
       formData.append('target_col', targetCol);
       formData.append('max_iter', maxIter);
+      formData.append('task_type', taskType);
 
       // Reset UI
       document.getElementById('run-btn').disabled = true;
       document.getElementById('results-div').style.display = 'none';
       document.getElementById('reasoning-cards').innerHTML = '';
       document.getElementById('reasoning-section').style.display = 'none';
-      document.getElementById('status-div').style.display = 'block';
-      document.getElementById('status-text').textContent = 'starting…';
+      document.getElementById('card-count').textContent = '0';
+      document.getElementById('baseline-shap-section').style.display = 'none';
+      document.getElementById('shap-bars').innerHTML = '';
+      baselineShapRendered = false;
+      document.getElementById('status-div').style.display = 'flex';
+      setStatusBadge('running', 'starting…');
       document.getElementById('iteration-text').textContent = '0';
+      document.getElementById('iter-label').style.display = 'none';
       renderedIterations = 0;
 
       try {
         await fetch('/run', { method: 'POST', body: formData });
       } catch (err) {
-        document.getElementById('status-text').textContent = 'error: ' + err.message;
+        setStatusBadge('error', 'error: ' + err.message);
         document.getElementById('run-btn').disabled = false;
         return;
       }
@@ -119,14 +527,31 @@
       tracePollInterval = setInterval(pollTrace, 3000);
     });
 
+    function setStatusBadge(state, label) {
+      const badge = document.getElementById('status-badge');
+      const dot   = document.getElementById('pulse-dot');
+      const text  = document.getElementById('status-text');
+      badge.className = 'status-badge ' + state;
+      text.textContent = label;
+      dot.style.display = state === 'running' ? 'block' : 'none';
+    }
+
     async function pollStatus() {
       try {
         const resp = await fetch('/status');
         const data = await resp.json();
-        document.getElementById('status-text').textContent = data.status;
-        document.getElementById('iteration-text').textContent = data.iteration;
+        const iterLabel = document.getElementById('iter-label');
 
-        if (data.status === 'complete') {
+        if (data.status === 'running') {
+          setStatusBadge('running', 'running');
+          iterLabel.style.display = 'inline';
+          document.getElementById('iteration-text').textContent = data.iteration;
+        } else {
+          setStatusBadge(data.status, data.status);
+          iterLabel.style.display = 'none';
+        }
+
+        if (data.status === 'complete' || data.status === 'error') {
           clearInterval(statusPollInterval);
           statusPollInterval = null;
           clearInterval(tracePollInterval);
@@ -145,10 +570,45 @@
       try {
         const resp = await fetch('/trace');
         const data = await resp.json();
-        appendNewCards(data.trace || []);
+        const trace = data.trace || [];
+        renderBaselineShap(trace);
+        appendNewCards(trace);
       } catch (err) {
         console.error('Trace poll error:', err);
       }
+    }
+
+    function renderBaselineShap(trace) {
+      if (baselineShapRendered) return;
+      const baseline = trace.find(e => e.status === 'baseline');
+      console.log('[SHAP] baseline entry:', JSON.stringify(baseline));
+      console.log('[SHAP] shap_values:', baseline ? baseline.shap_values : 'no baseline entry');
+      if (!baseline || !baseline.shap_values) return;
+
+      const shapDict = baseline.shap_values;
+      const entries = Object.entries(shapDict).sort((a, b) => b[1] - a[1]);
+      if (entries.length === 0) return;
+
+      const maxVal = entries[0][1];
+      const container = document.getElementById('shap-bars');
+      container.innerHTML = '';
+
+      entries.forEach(function ([name, val]) {
+        const pct = maxVal > 0 ? (val / maxVal * 100).toFixed(1) : 0;
+        const row = document.createElement('div');
+        row.className = 'shap-bar-row';
+        row.innerHTML =
+          '<span class="shap-feat-name" title="' + escHtml(name) + '">' + escHtml(name) + '</span>' +
+          '<div class="shap-bar-track">' +
+            '<div class="shap-bar-fill" style="width:' + pct + '%"></div>' +
+          '</div>' +
+          '<span class="shap-val">' + val.toFixed(4) + '</span>';
+        container.appendChild(row);
+      });
+
+      document.getElementById('baseline-shap-section').style.display = 'block';
+      console.log('[SHAP] rendered', entries.length, 'bars');
+      baselineShapRendered = true;
     }
 
     // Appends cards only for iteration records not yet rendered
@@ -159,25 +619,46 @@
         container.appendChild(buildCard(iterations[i]));
       }
       renderedIterations = iterations.length;
+      document.getElementById('card-count').textContent = renderedIterations;
     }
 
     function buildCard(rec) {
       const delta = rec.auc_delta >= 0
         ? '+' + rec.auc_delta.toFixed(4)
         : rec.auc_delta.toFixed(4);
+      const deltaClass = rec.auc_delta > 0 ? 'delta-good' : 'delta-bad';
       const decisionClass = 'decision-' + rec.decision;
 
       const card = document.createElement('div');
       card.className = 'iter-card';
+
+      const codeEscaped = escHtml(rec.transformation_code || '');
+
       card.innerHTML =
-        '<div class="iter-title">Iteration ' + rec.iteration + '</div>' +
-        '<div class="iter-row"><strong>Hypothesis:</strong> ' + escHtml(rec.hypothesis) + '</div>' +
-        '<div class="iter-row"><strong>Feature:</strong> ' + escHtml(rec.feature_name) + '</div>' +
-        '<div class="iter-row"><strong>AUC:</strong> ' +
-          rec.auc_before.toFixed(4) + ' → ' + rec.auc_after.toFixed(4) +
-          ' (delta: ' + delta + ')</div>' +
-        '<div class="iter-row"><strong>Decision:</strong> ' +
-          '<span class="' + decisionClass + '">' + escHtml(rec.decision) + '</span></div>';
+        '<div class="iter-top-row">' +
+          '<span class="iter-title">Iteration ' + rec.iteration + '</span>' +
+          '<span class="decision-badge ' + decisionClass + '">' + escHtml(rec.decision) + '</span>' +
+        '</div>' +
+        '<div class="iter-row">' +
+          '<div class="iter-label">Hypothesis</div>' +
+          '<div class="hypothesis-box">' + escHtml(rec.hypothesis) + '</div>' +
+        '</div>' +
+        '<div class="iter-row">' +
+          '<div class="iter-label">Feature</div>' +
+          '<code>' + escHtml(rec.feature_name) + '</code>' +
+        '</div>' +
+        '<div class="iter-row">' +
+          '<div class="iter-label">Generated code</div>' +
+          '<div class="code-wrap">' +
+            '<span class="code-badge">Code</span>' +
+            '<pre><code>' + codeEscaped + '</code></pre>' +
+          '</div>' +
+        '</div>' +
+        '<div class="iter-row metric-row">' +
+          '<span>' + rec.auc_before.toFixed(4) + ' &rarr; ' + rec.auc_after.toFixed(4) + '</span>' +
+          ' <span class="' + deltaClass + '">(delta: ' + delta + ')</span>' +
+        '</div>';
+
       return card;
     }
 
@@ -204,14 +685,33 @@
       const iterations = trace.filter(e => e.status !== 'baseline');
       const kept = iterations.filter(e => e.decision === 'kept');
 
-      const baselineAuc = baseline ? baseline.auc.toFixed(4) : '—';
-      const lastKept = kept[kept.length - 1];
-      const finalAuc = lastKept
-        ? lastKept.auc_after.toFixed(4)
-        : (baseline ? baseline.auc.toFixed(4) : '—');
+      const isRegression = baseline && baseline.task_type === 'regression';
+      const metricKey = baseline && baseline.primary_metric !== undefined
+        ? 'primary_metric' : 'auc';
 
-      document.getElementById('baseline-auc').textContent = baselineAuc;
-      document.getElementById('final-auc').textContent = finalAuc;
+      const baselineVal = baseline ? baseline[metricKey] : null;
+      const lastKept = kept[kept.length - 1];
+      const finalVal = lastKept
+        ? lastKept.auc_after
+        : (baseline ? baseline[metricKey] : null);
+
+      document.getElementById('baseline-label').textContent = isRegression ? 'Baseline RMSE' : 'Baseline AUC';
+      document.getElementById('final-label').textContent   = isRegression ? 'Final RMSE'    : 'Final AUC';
+      document.getElementById('baseline-auc').textContent  = baselineVal !== null ? baselineVal.toFixed(4) : '—';
+      document.getElementById('final-auc').textContent     = finalVal    !== null ? finalVal.toFixed(4)    : '—';
+
+      const liftLine = document.getElementById('lift-line');
+      if (baselineVal !== null && finalVal !== null) {
+        if (isRegression) {
+          const improvement = (baselineVal - finalVal).toFixed(4);
+          liftLine.innerHTML = 'Improvement: <span class="lift-value">' + improvement + '</span>';
+        } else {
+          const lift = (finalVal - baselineVal).toFixed(4);
+          liftLine.innerHTML = 'AUC Lift: <span class="lift-value">+' + lift + '</span>';
+        }
+      } else {
+        liftLine.innerHTML = '';
+      }
 
       const tbody = document.getElementById('features-body');
       tbody.innerHTML = '';

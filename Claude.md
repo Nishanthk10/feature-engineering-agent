@@ -1,4 +1,4 @@
-# Claude.md — v1.2 · FROZEN · 2026-03-22
+# Claude.md — v1.3 · FROZEN · 2026-03-31
 
 ---
 
@@ -29,8 +29,6 @@ INVARIANT: The four MCP tool signatures (profile_dataset, execute_feature_code, 
 INVARIANT: The agent must train and record a baseline metric (AUC for classification, RMSE for regression) on raw features before any engineered features are introduced. The baseline entry must be the first entry in trace.json. This is never negotiable.
 
 INVARIANT: The task type (classification or regression) must be determined and locked before the baseline evaluation runs. It must not change mid-run. All tools, prompts, and metrics must use the same task type for the entire agent session. No tool or class may modify TaskType after it is set. This is never negotiable.
-
-INVARIANT: A failure in any MLflow logging call must never stop or crash the agent run. Every mlflow.* call must be wrapped in try/except Exception. On failure, print a warning and continue. Agent exit status is determined by the JSON trace and EvaluationResult only — never by MLflow state. This is never negotiable.
 
 ---
 
@@ -67,7 +65,6 @@ INVARIANT: A failure in any MLflow logging call must never stop or crash the age
 - `tests/test_api.py`
 - `tests/test_benchmark.py`
 - `tests/test_regression.py`
-- `tests/test_mlflow.py`
 - `tests/test_e2e.py`
 - `tests/test_llm_client.py`
 - `requirements.txt`
@@ -118,7 +115,6 @@ If something is not in the task prompt, do the minimum and flag the gap. Never f
 | Validation | pydantic | v2 — use `model_validator` not `validator` |
 | MCP | fastmcp | `FastMCP()` pattern |
 | API | FastAPI + uvicorn | `api/main.py`, port 8000 |
-| Experiment tracking | mlflow | local file-based, `mlflow.set_tracking_uri("./mlruns")`. All calls non-blocking |
 | Testing | pytest | `pytest.mark.e2e` for end-to-end tests |
 | Sandbox | subprocess | timeout=30, /tmp/fe_sandbox/ working dir |
 | Trace format | JSON | list of dicts, written atomically via .tmp rename |

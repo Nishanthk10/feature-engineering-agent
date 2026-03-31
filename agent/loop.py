@@ -1,12 +1,10 @@
 import copy
 import json
 import pathlib
-from datetime import datetime
 
-try:
-    import mlflow
-except Exception:
-    mlflow = None  # type: ignore
+from agent.logger import get_logger
+
+logger = get_logger("agent.loop")
 
 from agent.data_loader import DatasetLoader
 from agent.leakage_detector import LeakageDetector
@@ -58,33 +56,12 @@ class AgentLoop:
         except Exception:
             effective_task_type = TaskType.classification
 
-        # MLflow step 1: start parent run
-        try:
-            mlflow.set_tracking_uri("./mlruns")
-            mlflow.set_experiment("feature-agent")
-            parent_run = mlflow.start_run(
-                run_name=f"agent-{dataset_path}-{datetime.now().isoformat()}"
-            )
-        except Exception as e:
-            print(f"[MLflow warning]: {e}")
-            parent_run = None
-
         # 2. Baseline evaluation
         baseline_result = EvaluateTool().evaluate(working_df, target_col, effective_task_type)
         baseline_metric = baseline_result.primary_metric
         current_metric = baseline_metric
         current_shap = ShapTool().format_for_llm(baseline_result)
         profile = ProfileTool().profile(working_df, target_col)
-
-        # MLflow step 2: log baseline
-        try:
-            if parent_run:
-                with mlflow.start_run(run_name="baseline", nested=True):
-                    mlflow.log_metric("baseline_auc_or_rmse", baseline_result.primary_metric)
-                    mlflow.log_param("task_type", effective_task_type.value)
-                    mlflow.log_param("feature_count", len(profile.feature_cols))
-        except Exception as e:
-            print(f"[MLflow warning]: {e}")
 
         # 3. Write baseline entry before iteration 1 (INV-05)
         baseline_entry = {
@@ -96,11 +73,13 @@ class AgentLoop:
             "secondary_metric": baseline_result.secondary_metric,
             "task_type": effective_task_type.value,
             "features_used": baseline_result.feature_names,
+            "shap_values": baseline_result.shap_values,
         }
         trace_entries: list[dict] = [baseline_entry]
         _write_trace(trace_entries)
 
         print(f"Baseline {effective_task_type.value} metric: {baseline_metric:.4f}")
+        logger.info(f"Baseline {effective_task_type.value} metric: {baseline_metric:.4f}")
 
         reasoner = LLMReasoner()
         iteration_records: list[IterationRecord] = []
@@ -110,18 +89,69 @@ class AgentLoop:
         effective_max = min(max_iter, 10)
         for i in range(1, effective_max + 1):
             metric_before = current_metric
+            logger.debug(f"Loop iteration {i}/{effective_max} starting")
 
             # a. LLM reason
-            reasoning = reasoner.reason(
-                profile=profile,
-                shap_summary=current_shap,
-                iteration_history=iteration_records,
-                current_features=[c for c in working_df.columns if c != target_col],
-                task_type=effective_task_type,
-            )
+            try:
+                reasoning = reasoner.reason(
+                    profile=profile,
+                    shap_summary=current_shap,
+                    iteration_history=iteration_records,
+                    current_features=[c for c in working_df.columns if c != target_col],
+                    task_type=effective_task_type,
+                )
+            except Exception as llm_exc:
+                record = IterationRecord(
+                    iteration=i,
+                    hypothesis="LLM call failed",
+                    feature_name="unknown",
+                    transformation_code="",
+                    auc_before=metric_before,
+                    auc_after=metric_before,
+                    auc_delta=0.0,
+                    shap_summary=_empty_shap_summary(),
+                    decision="error",
+                    error_message=str(llm_exc),
+                    status="failed",
+                )
+                iteration_records.append(record)
+                trace_entries.append(record.model_dump())
+                _write_trace(trace_entries)
+                print(f"Iteration {i}: LLM error — {llm_exc}")
+                logger.error(f"Iteration {i}: LLM call failed: {llm_exc}", exc_info=llm_exc)
+                small_delta_count += 1
+                if small_delta_count >= EARLY_STOP_CONSECUTIVE:
+                    print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
+                    break
+                continue
 
             # b. Execute transformation in sandbox
-            exec_result = ExecuteTool().execute(working_df, reasoning.transformation_code)
+            logger.debug(f"Iteration {i}: calling ExecuteTool for feature '{reasoning.feature_name}'")
+            try:
+                exec_result = ExecuteTool().execute(working_df, reasoning.transformation_code)
+            except Exception as exec_exc:
+                record = IterationRecord(
+                    iteration=i,
+                    hypothesis=reasoning.hypothesis,
+                    feature_name=reasoning.feature_name,
+                    transformation_code=reasoning.transformation_code,
+                    auc_before=metric_before,
+                    auc_after=metric_before,
+                    auc_delta=0.0,
+                    shap_summary=_empty_shap_summary(),
+                    decision="error",
+                    error_message=str(exec_exc),
+                    status="failed",
+                )
+                iteration_records.append(record)
+                trace_entries.append(record.model_dump())
+                _write_trace(trace_entries)
+                logger.error(f"Iteration {i}: ExecuteTool raised unexpectedly: {exec_exc}", exc_info=True)
+                small_delta_count += 1
+                if small_delta_count >= EARLY_STOP_CONSECUTIVE:
+                    print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
+                    break
+                continue
 
             # c. Execute failed → log error record and continue
             if not exec_result.success:
@@ -142,18 +172,7 @@ class AgentLoop:
                 trace_entries.append(record.model_dump())
                 _write_trace(trace_entries)
                 print(f"Iteration {i}: execute error — {exec_result.error_message}")
-                try:
-                    if parent_run:
-                        with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
-                            mlflow.log_metric("metric_before", record.auc_before)
-                            mlflow.log_metric("metric_after", record.auc_after)
-                            mlflow.log_metric("metric_delta", record.auc_delta)
-                            mlflow.log_param("hypothesis", record.hypothesis[:250])
-                            mlflow.log_param("feature_name", record.feature_name)
-                            mlflow.log_param("decision", record.decision)
-                            mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
-                except Exception as e:
-                    print(f"[MLflow warning]: {e}")
+                logger.warning(f"Iteration {i}: sandbox execution failed: {exec_result.error_message}")
                 small_delta_count += 1
                 if small_delta_count >= EARLY_STOP_CONSECUTIVE:
                     print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
@@ -186,18 +205,7 @@ class AgentLoop:
                 trace_entries.append(record.model_dump())
                 _write_trace(trace_entries)
                 print(f"Iteration {i}: leakage detected — {leak.reason}")
-                try:
-                    if parent_run:
-                        with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
-                            mlflow.log_metric("metric_before", record.auc_before)
-                            mlflow.log_metric("metric_after", record.auc_after)
-                            mlflow.log_metric("metric_delta", record.auc_delta)
-                            mlflow.log_param("hypothesis", record.hypothesis[:250])
-                            mlflow.log_param("feature_name", record.feature_name)
-                            mlflow.log_param("decision", record.decision)
-                            mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
-                except Exception as e:
-                    print(f"[MLflow warning]: {e}")
+                logger.info(f"Iteration {i}: feature '{reasoning.feature_name}' flagged as leaking: {leak.reason}")
                 small_delta_count += 1
                 if small_delta_count >= EARLY_STOP_CONSECUTIVE:
                     print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive low-delta iterations")
@@ -247,29 +255,20 @@ class AgentLoop:
             _write_trace(trace_entries)
 
             print(f"Iteration {i}: metric {metric_after:.4f} (delta {metric_delta:+.4f}) — {decision}")
+            logger.info(f"Iteration {i}: {decision} — metric {metric_after:.4f} (delta {metric_delta:+.4f})")
 
-            # MLflow step 3: log iteration
-            try:
-                if parent_run:
-                    with mlflow.start_run(run_name=f"iteration-{i}", nested=True):
-                        mlflow.log_metric("metric_before", record.auc_before)
-                        mlflow.log_metric("metric_after", record.auc_after)
-                        mlflow.log_metric("metric_delta", record.auc_delta)
-                        mlflow.log_param("hypothesis", record.hypothesis[:250])
-                        mlflow.log_param("feature_name", record.feature_name)
-                        mlflow.log_param("decision", record.decision)
-                        mlflow.log_text(record.transformation_code, f"code_iter_{i}.py")
-            except Exception as e:
-                print(f"[MLflow warning]: {e}")
-
-            # j. Early stop check
-            if abs(metric_delta) < EARLY_STOP_DELTA:
+            # j. Early stop check — only stop when consecutive iterations are
+            # discarded with small delta; a kept feature resets the counter.
+            if decision == "kept":
+                small_delta_count = 0
+            elif abs(metric_delta) < EARLY_STOP_DELTA:
                 small_delta_count += 1
             else:
                 small_delta_count = 0
 
             if small_delta_count >= EARLY_STOP_CONSECUTIVE:
-                print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive iterations with |delta| < {EARLY_STOP_DELTA}")
+                print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive discarded iterations with |delta| < {EARLY_STOP_DELTA}")
+                logger.info(f"Early stop triggered after {i} iterations (consecutive small-delta count: {small_delta_count})")
                 break
 
         final_features = [c for c in working_df.columns if c != target_col]
@@ -282,14 +281,8 @@ class AgentLoop:
             task_type=effective_task_type,
         )
 
-        # MLflow step 4: log final metrics and end run
-        try:
-            if parent_run:
-                mlflow.log_metric("final_metric", trace.final_metric)
-                mlflow.log_metric("total_lift", trace.final_metric - trace.baseline_metric)
-                mlflow.log_metric("iterations_run", len(trace.iterations))
-                mlflow.end_run()
-        except Exception as e:
-            print(f"[MLflow warning]: {e}")
-
+        logger.info(
+            f"Agent complete. Final metric: {trace.final_metric:.4f} "
+            f"(baseline: {trace.baseline_metric:.4f}, iterations: {len(trace.iterations)})"
+        )
         return trace

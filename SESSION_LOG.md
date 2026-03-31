@@ -41,6 +41,7 @@
 |------|--------------------|--------------|
 | 5.3 | TestMLflowCreatesArtifacts failed in full suite due to mlflow global state — passed in isolation | Marked @pytest.mark.e2e — requires real MLflow and clean global state, not a unit test |
 | 5.5 | run_agent.py printed "AUC" labels for regression runs | Fixed label to show "RMSE" and "Improvement (lower is better)" for regression task type |
+| Post-S5 | Sandbox execution hung on Windows due to Defender file locking on /tmp/fe_sandbox/ pickle files | Switched to stdin/stdout approach — subprocess receives DataFrame via stdin, returns result via stdout, no temp files |
 ---
 
 ## Claude.md Changes

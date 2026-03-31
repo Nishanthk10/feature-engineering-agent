@@ -4,6 +4,7 @@ import shap
 from lightgbm import LGBMClassifier, LGBMRegressor
 from sklearn.metrics import f1_score, mean_squared_error, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
 from tools.schemas import EvaluationResult, TaskType
 
@@ -21,6 +22,13 @@ class EvaluateTool:
         feature_names = [c for c in df.columns if c != target_col]
         X = df[feature_names].copy()
         y = df[target_col].copy()
+
+        # Encode object/string feature columns so LightGBM receives numeric input.
+        # Operates on the copy — does not modify the original DataFrame (INV-01).
+        object_cols = [col for col in X.columns if X[col].dtype == object]
+        for col in object_cols:
+            le = LabelEncoder()
+            X[col] = le.fit_transform(X[col].astype(str))
 
         if task_type == TaskType.regression:
             X_train, X_test, y_train, y_test = train_test_split(
@@ -47,6 +55,11 @@ class EvaluateTool:
                 class_weight="balanced",
                 verbose=-1,
             )
+            # Encode string target (e.g. "yes"/"no") to integers for sklearn metrics.
+            if y_train.dtype == object:
+                le_y = LabelEncoder()
+                y_train = le_y.fit_transform(y_train)
+                y_test = le_y.transform(y_test)
             model.fit(X_train, y_train)
             y_prob = model.predict_proba(X_test)[:, 1]
             y_pred = model.predict(X_test)

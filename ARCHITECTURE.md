@@ -89,13 +89,13 @@ A user provides a CSV dataset and names the target column. The agent runs autono
 ---
 
 ### Decision 6: JSON trace log as the observability artifact
-**What was decided:** Every iteration is logged as a structured JSON entry: hypothesis formed, code generated, features created, metric before/after, SHAP delta per feature, keep/discard/mutate decision. MLflow is used alongside JSON — each agent run is also logged as an MLflow experiment so iteration history is queryable via the MLflow UI.
+**What was decided:** Every iteration is logged as a structured JSON entry: hypothesis formed, code generated, features created, metric before/after, SHAP delta per feature, keep/discard/mutate decision. Structured logs are written to `outputs/agent.log` and exposed via the `GET /logs` endpoint.
 
-**Rationale:** The JSON trace is the demo's most powerful artifact — it makes the plan → act → observe → adapt loop visible to judges and serves as the evaluation record for correctness testing. MLflow adds a production-grade experiment tracking UI on top of the same data, satisfying the observability extra-credit criterion and signalling production thinking to judges who know ML.
+**Rationale:** The JSON trace is the demo's most powerful artifact — it makes the plan → act → observe → adapt loop visible to judges and serves as the evaluation record for correctness testing. The `agent.log` file provides per-component DEBUG logging for diagnosing failures without polluting stdout.
 
 **Alternatives rejected:**
 - Console logs only: unstructured, cannot be replayed or audited
-- MLflow only (no JSON): JSON trace is needed for the /trace/view endpoint and e2e tests; MLflow alone is not programmatically parseable without the tracking server running
+- External experiment tracking (MLflow, W&B): adds a dependency and failure mode without improving the core observability story; JSON trace is programmatically parseable without any server running
 
 ---
 
@@ -115,20 +115,6 @@ A user provides a CSV dataset and names the target column. The agent runs autono
 
 ---
 
-### Decision 8: MLflow integration
-**What was decided:** Each agent run logs to a local MLflow tracking server (file-based, no server process required — uses `mlflow.set_tracking_uri("./mlruns")`). Each iteration is logged as an MLflow child run with metrics (AUC/RMSE before/after, delta), params (hypothesis, feature name), and the transformation code as an artifact.
-
-**Rationale:** MLflow is the de facto standard for ML experiment tracking. Judges who work in ML will immediately recognise the MLflow UI as a signal of production-grade thinking. It also provides a queryable history of all iterations across all agent runs — something the JSON trace alone cannot offer.
-
-**Alternatives rejected:**
-- Weights & Biases: requires account creation and network access; MLflow runs fully local
-- Custom DB: MLflow already solves this problem; building a custom solution adds complexity with no benefit
-
-**Challenge:** MLflow adds a dependency and a new failure mode — if MLflow logging fails, should the agent stop?
-**Assessment:** MLflow logging is non-blocking. Wrap all `mlflow.*` calls in try/except. If MLflow logging fails, log a warning and continue. The JSON trace is the source of truth; MLflow is additive.
-
----
-
 ## 3. Challenge My Decisions
 
 | Decision | Strongest argument against | Assessment |
@@ -138,7 +124,7 @@ A user provides a CSV dataset and names the target column. The agent runs autono
 | LightGBM as eval | AUC proxy may mislead on imbalanced datasets | Mitigated — add class-weight balancing and report both AUC and F1 |
 | SHAP as feedback | SHAP computation on large datasets is slow | Mitigated — sample 5k rows for SHAP if dataset > 50k rows |
 | MCP exposure | Adds ~1 day of build time for a judging criterion that is "extra credit" | Accepted — MCP is 1 day well spent; it also makes the architecture story stronger |
-| JSON trace + MLflow | Two observability systems means two failure modes to handle | Accepted — MLflow is non-blocking; JSON trace is source of truth; MLflow is additive |
+| JSON trace + structured logs | Two output formats means two things to keep in sync | Accepted — logs are append-only and independent; JSON trace is source of truth |
 | Regression support | Auto-detection of target type can misclassify ordinal targets | Mitigated — `--task-type` CLI flag lets user override detection |
 
 ---
@@ -174,7 +160,7 @@ All resolved before execution planning:
 | Which LLM? | Claude claude-sonnet-4-20250514 via Anthropic API |
 | Max iterations? | Hard cap of 10. Stop early if metric delta < 0.001 for 2 consecutive iterations |
 | Classification only or regression too? | Both. Auto-detected from target column. Override via `--task-type classification|regression` |
-| MLflow in scope? | Yes. Local file-based tracking (`./mlruns`). Non-blocking — JSON trace remains source of truth |
+| Experiment tracking? | JSON trace at `outputs/trace.json` + structured log at `outputs/agent.log`. No external tracking dependency. |
 | Frontend or CLI? | FastAPI + minimal HTML single-page UI. CLI also supported via `python run_agent.py` |
 | Real dataset or synthetic? | Both. UCI Bank Marketing (classification) and a synthetic regression dataset for demo |
 
@@ -198,7 +184,6 @@ All resolved before execution planning:
 | `TaskType` | Enum: `classification` or `regression`. Auto-detected or user-specified via CLI flag |
 | `FeatureCandidate` | A single engineered feature: name, transformation code, hypothesis, SHAP value, keep/discard decision |
 | `IterationRecord` | One full agent loop: iteration number, hypothesis text, features attempted, metric before/after (AUC or RMSE), SHAP delta, LLM decision |
-| `AgentTrace` | The complete ordered list of IterationRecords for one agent run. Written as JSON and logged to MLflow |
+| `AgentTrace` | The complete ordered list of IterationRecords for one agent run. Written as JSON to `outputs/trace.json` |
 | `EvaluationResult` | Primary metric (AUC for classification, RMSE for regression), secondary metric (F1 or R²), SHAP values per feature |
-| `MLflowRun` | One MLflow parent run per agent session. One child run per iteration. Logged non-blocking alongside JSON trace |
 | `FormattedOutput` | Final ranked feature set with plain-English explanations. Delivered to UI and written to output CSV |
