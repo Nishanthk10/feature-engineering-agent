@@ -78,7 +78,7 @@ class LLMClient:
             from google import genai
             client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-3.1-pro-preview",
                 contents=system + "\n\n" + user,
             )
             return response.text
@@ -118,10 +118,30 @@ class LLMClient:
             )
             return response
 
+        elif provider == "openrouter":
+            from openai import OpenAI
+            client = OpenAI(
+                api_key=os.environ.get("OPENROUTER_API_KEY"),
+                base_url="https://openrouter.ai/api/v1",
+                default_headers={
+                    "HTTP-Referer": os.environ.get("OPENROUTER_SITE_URL", ""),
+                    "X-Title": os.environ.get("OPENROUTER_SITE_NAME", "feature-agent"),
+                },
+            )
+            model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o")
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            return response.choices[0].message.content
+
         else:
             raise ValueError(
                 f"Unsupported LLM_PROVIDER: {provider}. "
-                "Supported: gemini, openai, anthropic, huggingface"
+                "Supported: gemini, openai, anthropic, huggingface, openrouter"
             )
 
     def complete(self, system: str, user: str) -> str:
