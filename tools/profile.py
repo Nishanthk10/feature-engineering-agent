@@ -14,6 +14,14 @@ class ProfileTool:
 
         dtypes = {col: str(df[col].dtype) for col in df.columns}
 
+        sample = df.head(5).to_dict(orient="records")
+        sample_rows = [
+            {k: round(v, 4) if isinstance(v, float) else v
+             for k, v in row.items()
+             if k != target_col}
+            for row in sample
+        ]
+
         return DatasetProfile(
             row_count=len(df),
             column_count=len(df.columns),
@@ -21,4 +29,5 @@ class ProfileTool:
             feature_cols=feature_cols,
             missing_rate=missing_rate,
             dtypes=dtypes,
+            sample_rows=sample_rows,
         )

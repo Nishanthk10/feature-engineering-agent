@@ -93,28 +93,28 @@ def _patch_complete(response_text: str):
 class TestLLMReasonerValidResponse:
     def test_valid_json_parses_into_reasoning_output(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), ["age_sq"])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), ["age_sq"], iteration_number=1)
         assert isinstance(result, ReasoningOutput)
 
     def test_hypothesis_field_populated(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [], iteration_number=1)
         assert result.hypothesis == VALID_RESPONSE["hypothesis"]
 
     def test_feature_name_field_populated(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [], iteration_number=1)
         assert result.feature_name == VALID_RESPONSE["feature_name"]
 
     def test_transformation_code_present_and_non_empty(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [], iteration_number=1)
         assert isinstance(result.transformation_code, str)
         assert len(result.transformation_code.strip()) > 0
 
     def test_decision_rationale_field_populated(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), make_history(), [], iteration_number=1)
         assert result.decision_rationale == VALID_RESPONSE["decision_rationale"]
 
 
@@ -122,36 +122,36 @@ class TestLLMReasonerInvalidResponse:
     def test_malformed_json_raises_value_error(self):
         with _patch_complete("not valid json {"):
             with pytest.raises(ValueError):
-                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
 
     def test_value_error_includes_raw_response(self):
         raw = "definitely not json"
         with _patch_complete(raw):
             with pytest.raises(ValueError, match=raw):
-                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
 
     def test_empty_response_raises_value_error(self):
         with _patch_complete(""):
             with pytest.raises(ValueError):
-                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
 
     def test_missing_required_key_raises_validation_error(self):
         incomplete = {k: v for k, v in VALID_RESPONSE.items() if k != "transformation_code"}
         with _patch_complete(json.dumps(incomplete)):
             with pytest.raises(ValidationError):
-                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+                LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
 
 
 class TestLLMReasonerAPICall:
     def test_complete_called_once_per_reason_call(self):
         with patch.object(LLMClient, "complete", return_value=json.dumps(VALID_RESPONSE)) as mock_complete:
-            LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+            LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
         mock_complete.assert_called_once()
 
     def test_history_of_5_truncates_to_last_3(self):
         history = [make_record(i) for i in range(1, 6)]  # iterations 1–5
         with patch.object(LLMClient, "complete", return_value=json.dumps(VALID_RESPONSE)) as mock_complete:
-            LLMReasoner().reason(make_profile(), make_shap_summary(), history, [])
+            LLMReasoner().reason(make_profile(), make_shap_summary(), history, [], iteration_number=1)
         _, user_prompt = mock_complete.call_args[0]
         assert "Hypothesis 3" in user_prompt
         assert "Hypothesis 4" in user_prompt
@@ -161,5 +161,5 @@ class TestLLMReasonerAPICall:
 
     def test_empty_history_does_not_raise(self):
         with _patch_complete(json.dumps(VALID_RESPONSE)):
-            result = LLMReasoner().reason(make_profile(), make_shap_summary(), [], [])
+            result = LLMReasoner().reason(make_profile(), make_shap_summary(), [], [], iteration_number=1)
         assert isinstance(result, ReasoningOutput)

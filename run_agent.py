@@ -1,5 +1,6 @@
 import argparse
 import csv
+import json
 import pathlib
 import sys
 
@@ -21,13 +22,24 @@ def main():
         default=None,
         help="Task type (default: auto-detect from target column)",
     )
+    parser.add_argument(
+        "--data-dict",
+        default=None,
+        help="Path to a JSON file containing {col_name: description} pairs",
+    )
     args = parser.parse_args()
+
+    data_dictionary: dict[str, str] | None = None
+    if args.data_dict:
+        with open(args.data_dict) as f:
+            data_dictionary = json.load(f)
 
     trace = AgentLoop().run(
         dataset_path=args.dataset,
         target_col=args.target,
         max_iter=args.max_iter,
         task_type=args.task_type,
+        data_dictionary=data_dictionary,
     )
 
     import pandas as pd

@@ -93,12 +93,12 @@ If something is not in the task prompt, do the minimum and flag the gap. Never f
 | Component | Technology | Version / Notes |
 |---|---|---|
 | Language | Python | 3.11+ |
-| LLM provider | Configurable via LLM_PROVIDER env var | Supported: gemini (default), openai, anthropic, huggingface, openrouter |
-| Default model | OpenRouter — Qwen3.6 Plus Preview | qwen/qwen3.6-plus-preview:free via openrouter |
+| LLM provider | Configurable via LLM_PROVIDER env var | Supported: gemini, openai, anthropic, huggingface, openrouter, nvidia |
+| Default model | NVIDIA — DeepSeek V3.2 | deepseek-ai/deepseek-v3.2 via NVIDIA NIM (streaming, thinking mode) |
 | OpenAI model | gpt-4o | via openai SDK |
 | Anthropic model | claude-sonnet-4-20250514 | via anthropic SDK |
 | HuggingFace model | mistralai/Mistral-7B-Instruct-v0.2 | via huggingface_hub InferenceClient |
-| LLM env vars | LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY, OPENROUTER_API_KEY, OPENROUTER_MODEL | All optional except the key matching LLM_PROVIDER |
+| LLM env vars | LLM_PROVIDER, GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY, OPENROUTER_API_KEY, OPENROUTER_MODEL, NVIDIA_API_KEY, NVIDIA_MODEL | All optional except the key matching LLM_PROVIDER |
 | LLM provider default | gemini | Used when LLM_PROVIDER is not set |
 | ML model (classification) | LightGBM | `LGBMClassifier`, n_estimators=50, max_depth=4, random_state=42, class_weight="balanced" |
 | ML model (regression) | LightGBM | `LGBMRegressor`, n_estimators=50, max_depth=4, random_state=42 |

@@ -408,6 +408,28 @@
           </select>
         </div>
 
+        <div style="margin: 8px 0 4px">
+          <a id="dict-toggle" href="#"
+             style="font-size:13px; color:#0D9488; text-decoration:none;">
+            ▶ Add column descriptions (optional)
+          </a>
+        </div>
+
+        <div id="dict-section" style="display:none; margin-bottom:12px">
+          <label style="font-size:13px; color:#64748B; display:block; margin-bottom:4px">
+            Describe your columns in JSON format — helps the agent reason better on cryptic column names
+          </label>
+          <textarea id="data-dict-input"
+                    name="data_dict"
+                    rows="4"
+                    placeholder='{"col_47": "customer age in years", "var_x3": "probability of default"}'
+                    style="width:100%; font-family:monospace; font-size:12px;
+                           padding:8px; border:1px solid #E2E8F0;
+                           border-radius:6px; resize:vertical;
+                           box-sizing:border-box">
+          </textarea>
+        </div>
+
         <div class="form-group">
           <label for="max_iter">Max Iterations</label>
           <input type="number" id="max_iter" name="max_iter" value="5" min="1" max="10" />
@@ -480,6 +502,16 @@
     let renderedIterations = 0;   // tracks how many cards have been appended
     let baselineShapRendered = false; // render baseline SHAP section only once
 
+    document.getElementById('dict-toggle').addEventListener('click', function(e) {
+      e.preventDefault();
+      const section = document.getElementById('dict-section');
+      const isHidden = section.style.display === 'none';
+      section.style.display = isHidden ? 'block' : 'none';
+      this.textContent = isHidden
+        ? '▼ Add column descriptions (optional)'
+        : '▶ Add column descriptions (optional)';
+    });
+
     document.getElementById('run-form').addEventListener('submit', async function (e) {
       e.preventDefault();
 
@@ -487,14 +519,24 @@
       const targetCol = document.getElementById('target_col').value;
       const maxIter = document.getElementById('max_iter').value;
       const taskType = document.getElementById('task_type').value;
+      const dictVal = document.getElementById('data-dict-input').value.trim();
 
       if (!fileInput.files[0]) return;
+
+      if (dictVal) {
+        try { JSON.parse(dictVal); }
+        catch(e) {
+          alert('Data dictionary must be valid JSON. Example:\n{"col_47": "customer age"}');
+          return;
+        }
+      }
 
       const formData = new FormData();
       formData.append('file', fileInput.files[0]);
       formData.append('target_col', targetCol);
       formData.append('max_iter', maxIter);
       formData.append('task_type', taskType);
+      formData.append('data_dict', dictVal);
 
       // Reset UI
       document.getElementById('run-btn').disabled = true;

@@ -43,6 +43,7 @@ class AgentLoop:
         target_col: str,
         max_iter: int = 5,
         task_type: str | None = None,
+        data_dictionary: dict[str, str] | None = None,
     ) -> AgentTrace:
         # 1. Load dataset
         loader = DatasetLoader()
@@ -62,6 +63,8 @@ class AgentLoop:
         current_metric = baseline_metric
         current_shap = ShapTool().format_for_llm(baseline_result)
         profile = ProfileTool().profile(working_df, target_col)
+        if data_dictionary:
+            profile.data_dictionary = data_dictionary
 
         # 3. Write baseline entry before iteration 1 (INV-05)
         baseline_entry = {
@@ -99,6 +102,7 @@ class AgentLoop:
                     iteration_history=iteration_records,
                     current_features=[c for c in working_df.columns if c != target_col],
                     task_type=effective_task_type,
+                    iteration_number=i,
                 )
             except Exception as llm_exc:
                 record = IterationRecord(
@@ -235,6 +239,8 @@ class AgentLoop:
                 current_metric = metric_after
                 current_shap = new_shap
                 profile = ProfileTool().profile(working_df, target_col)
+                if data_dictionary:
+                    profile.data_dictionary = data_dictionary
 
             # i. Write IterationRecord atomically
             record = IterationRecord(
@@ -259,6 +265,7 @@ class AgentLoop:
 
             # j. Early stop check — only stop when consecutive iterations are
             # discarded with small delta; a kept feature resets the counter.
+            # Phase-aware threshold: strict in early iterations, lenient during exploration.
             if decision == "kept":
                 small_delta_count = 0
             elif abs(metric_delta) < EARLY_STOP_DELTA:
@@ -266,8 +273,9 @@ class AgentLoop:
             else:
                 small_delta_count = 0
 
-            if small_delta_count >= EARLY_STOP_CONSECUTIVE:
-                print(f"Early stop: {EARLY_STOP_CONSECUTIVE} consecutive discarded iterations with |delta| < {EARLY_STOP_DELTA}")
+            consecutive_threshold = 2 if i <= 3 else 3
+            if small_delta_count >= consecutive_threshold:
+                print(f"Early stop: {consecutive_threshold} consecutive discarded iterations with |delta| < {EARLY_STOP_DELTA}")
                 logger.info(f"Early stop triggered after {i} iterations (consecutive small-delta count: {small_delta_count})")
                 break
 
