@@ -41,6 +41,8 @@ class DatasetProfile(BaseModel):
     feature_cols: list[str]
     missing_rate: dict[str, float]
     dtypes: dict[str, str]
+    sample_rows: list[dict] = []
+    data_dictionary: dict[str, str] = {}
 
 
 class FeatureShapEntry(BaseModel):
