@@ -64,8 +64,21 @@ def main() -> None:
     original_cols = set(df.columns)
 
     try:
+        import pandas as pd
+        import pandas
+        import numpy as np
+        import numpy
+
+        exec_globals = {
+            "df": df,
+            "pd": pd,
+            "pandas": pandas,
+            "np": np,
+            "numpy": numpy,
+        }
         check_imports(code)
-        exec(code, {"df": df})  # noqa: S102 — intentional, sandboxed subprocess only
+        exec(code, exec_globals)  # noqa: S102 — intentional, sandboxed subprocess only
+        df = exec_globals["df"]
     except Exception as exc:
         print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
         sys.exit(1)
