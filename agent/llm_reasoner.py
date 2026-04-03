@@ -31,6 +31,7 @@ Constraints for transformation_code:
   - Allowed imports: pandas, numpy, scipy.stats, sklearn.preprocessing
   - Do not read from or write to disk
   - Do not reference the target column
+  - Always use standard library aliases: pandas → pd (e.g. pd.to_datetime, not pandas.to_datetime), numpy → np (e.g. np.log, not numpy.log). Never use the full module name directly in code.
 
 Respond with JSON only. No markdown fences, no explanation outside the JSON object.\
 """
@@ -121,7 +122,7 @@ def _build_user_prompt(
         for col in profile.feature_cols[:10]:
             values = [str(row.get(col, "")) for row in profile.sample_rows]
             sample_section += f"  {col}: [{', '.join(values)}]\n"
-
+    print( shap_summary)
     shap_context, tier_instruction = _build_shap_context(shap_summary, iteration_number)
     tier_section = f"\nSHAP exploration directive:\n  {tier_instruction}\n" if tier_instruction else ""
 
